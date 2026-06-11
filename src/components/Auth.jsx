@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Lock, Mail, User, ArrowRight, HelpCircle, CheckCircle, ShieldQuestion } from 'lucide-react';
+import { useState } from 'react';
+import { Lock, Mail, User, ArrowRight, HelpCircle, CheckCircle } from 'lucide-react';
+import { getSharedArray, setSharedArray } from '../lib/sharedStore';
 
 const SECURITY_QUESTIONS = [
   "Tên thú cưng đầu tiên của bạn là gì?",
@@ -31,7 +32,7 @@ export default function Auth({ onLogin }) {
   const [successMsg, setSuccessMsg] = useState('');
 
   // Bước 1: Tìm tài khoản theo email → lấy câu hỏi bảo mật
-  const handleFindAccount = (e) => {
+  const handleFindAccount = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -42,7 +43,7 @@ export default function Auth({ onLogin }) {
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = await getSharedArray('users', []);
     const found = users.find(u => u.email === email);
 
     if (found) {
@@ -61,12 +62,12 @@ export default function Auth({ onLogin }) {
   };
 
   // Bước 2: Xác minh câu trả lời bí mật
-  const handleVerifyAnswer = (e) => {
+  const handleVerifyAnswer = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = await getSharedArray('users', []);
     const found = users.find(u => u.email === foundUserEmail);
 
     if (!found) {
@@ -83,7 +84,7 @@ export default function Auth({ onLogin }) {
   };
 
   // Bước 3: Đặt mật khẩu mới
-  const handleResetPassword = (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -93,12 +94,12 @@ export default function Auth({ onLogin }) {
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = await getSharedArray('users', []);
     const userIdx = users.findIndex(u => u.email === foundUserEmail);
 
     if (userIdx !== -1) {
       users[userIdx].password = newPassword;
-      localStorage.setItem('users', JSON.stringify(users));
+      await setSharedArray('users', users);
       setSuccessMsg('Đặt lại mật khẩu thành công! Hãy đăng nhập.');
       setTimeout(() => {
         setAuthMode('login');
@@ -114,7 +115,7 @@ export default function Auth({ onLogin }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -135,7 +136,7 @@ export default function Auth({ onLogin }) {
         return;
       }
 
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users = await getSharedArray('users', []);
       const user = users.find(u => u.email === email && u.password === password);
 
       if (user) {
@@ -163,7 +164,7 @@ export default function Auth({ onLogin }) {
         return;
       }
 
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users = await getSharedArray('users', []);
       if (users.some(u => u.email === email)) {
         setErrorMsg('Email này đã được đăng ký!');
         return;
@@ -185,7 +186,7 @@ export default function Auth({ onLogin }) {
         securityAnswer
       };
       users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
+      await setSharedArray('users', users);
 
       setSuccessMsg('Đăng ký tài khoản kèm câu hỏi bảo mật thành công! Hãy đăng nhập.');
       setAuthMode('login');

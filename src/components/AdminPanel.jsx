@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, BookOpen, Award, CheckCircle, FileText, Trash2, Edit3, X, Upload, Users, Key } from 'lucide-react';
+import { getSharedArray, setSharedArray } from '../lib/sharedStore';
 
 export default function AdminPanel({ 
   dictionary, 
@@ -201,27 +202,27 @@ export default function AdminPanel({
   };
 
   // User actions
-  const handleDeleteUser = (email) => {
+  const handleDeleteUser = async (email) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa tài khoản ${email}? Hành động này không thể khôi phục.`)) {
-      const currentUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      const currentUsers = await getSharedArray('users', []);
       const filtered = currentUsers.filter(u => u.email !== email);
-      localStorage.setItem('users', JSON.stringify(filtered));
+      await setSharedArray('users', filtered);
       setUsersList(filtered);
       setNotification(`Đã xóa tài khoản ${email} thành công.`);
       setTimeout(() => setNotification(''), 3000);
     }
   };
 
-  const handleResetUserPassword = (email) => {
+  const handleResetUserPassword = async (email) => {
     if (window.confirm(`Bạn có muốn reset mật khẩu của tài khoản ${email} về mặc định "123456"?`)) {
-      const currentUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      const currentUsers = await getSharedArray('users', []);
       const updated = currentUsers.map(u => {
         if (u.email === email) {
           return { ...u, password: '123456' };
         }
         return u;
       });
-      localStorage.setItem('users', JSON.stringify(updated));
+      await setSharedArray('users', updated);
       setUsersList(updated);
       setNotification(`Mật khẩu của tài khoản ${email} đã reset về "123456".`);
       setTimeout(() => setNotification(''), 3000);
@@ -229,10 +230,10 @@ export default function AdminPanel({
   };
 
   // Refresh users list when switching to user tab
-  const switchTab = (tab) => {
+  const switchTab = async (tab) => {
     setActiveTab(tab);
     if (tab === 'users') {
-      setUsersList(JSON.parse(localStorage.getItem('users') || '[]'));
+      setUsersList(await getSharedArray('users', []));
     }
   };
 

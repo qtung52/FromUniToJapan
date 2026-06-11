@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Send, MessageSquare, Tag, User, MessageCircle, Trash2, X, Briefcase, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Send, MessageSquare, Tag, MessageCircle, Trash2, X, Briefcase } from 'lucide-react';
+import { getSharedArray, isSupabaseEnabled, setSharedArray } from '../lib/sharedStore';
 
 const INITIAL_THREADS = [
   {
@@ -60,7 +61,7 @@ function formatDate(isoString) {
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
 
-  let relativeStr = '';
+  let relativeStr;
   if (diffSec < 60) {
     relativeStr = 'vừa xong';
   } else if (diffMin < 60) {
@@ -99,20 +100,46 @@ export default function Community({ currentUser }) {
 
   // View User Profile Modal State
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('loading'); // loading | online | offline
 
   useEffect(() => {
-    const localThreads = localStorage.getItem('nihon_threads');
-    if (localThreads) {
-      setThreads(JSON.parse(localThreads));
-    } else {
-      setThreads(INITIAL_THREADS);
-      localStorage.setItem('nihon_threads', JSON.stringify(INITIAL_THREADS));
-    }
+    let isMounted = true;
+
+    const loadThreads = async ({ silent = false } = {}) => {
+      if (!silent) setSyncStatus('loading');
+      try {
+        const sharedThreads = await getSharedArray('threads', INITIAL_THREADS);
+        if (!isMounted) return;
+        setThreads(sharedThreads);
+        setSyncStatus(isSupabaseEnabled ? 'online' : 'local');
+      } catch {
+        if (!isMounted) return;
+        const localThreads = localStorage.getItem('nihon_threads');
+        const fallbackThreads = localThreads ? JSON.parse(localThreads) : INITIAL_THREADS;
+        setThreads(fallbackThreads);
+        localStorage.setItem('nihon_threads', JSON.stringify(fallbackThreads));
+        setSyncStatus('offline');
+      }
+    };
+
+    loadThreads();
+    const interval = setInterval(() => loadThreads({ silent: true }), 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  const saveThreads = (updatedThreads) => {
+  const saveThreads = async (updatedThreads) => {
     setThreads(updatedThreads);
     localStorage.setItem('nihon_threads', JSON.stringify(updatedThreads));
+    try {
+      const target = await setSharedArray('threads', updatedThreads);
+      setSyncStatus(target === 'supabase' ? 'online' : target === 'local-api' ? 'local' : 'offline');
+    } catch {
+      setSyncStatus('offline');
+    }
   };
 
   const handlePost = (e) => {
@@ -191,7 +218,7 @@ export default function Community({ currentUser }) {
     }
   };
 
-  const openUserProfile = (email, name, role) => {
+  const openUserProfile = async (email, name, role) => {
     // Check if looking at admin
     if (email === 'admin@nihon.com') {
       setSelectedUserProfile({
@@ -205,7 +232,7 @@ export default function Community({ currentUser }) {
       return;
     }
 
-    const usersList = JSON.parse(localStorage.getItem('users') || '[]');
+    const usersList = await getSharedArray('users', []);
     const matchedUser = usersList.find(u => u.email === email);
 
     if (matchedUser) {
@@ -247,6 +274,20 @@ export default function Community({ currentUser }) {
       <div className="section-header">
         <h2 className="section-title">Góc Senpai - Kouhai</h2>
         <p className="section-subtitle">Diễn đàn thảo luận thời gian thực. Nơi hỏi đáp và chia sẻ kinh nghiệm văn hóa doanh nghiệp Nhật.</p>
+        <p style={{
+          marginTop: '0.5rem',
+          fontSize: '0.78rem',
+          color: syncStatus === 'online' || syncStatus === 'local' ? '#27ae60' : syncStatus === 'loading' ? 'var(--jp-text-muted)' : 'var(--jp-red)',
+          fontWeight: 600
+        }}>
+          {syncStatus === 'online'
+            ? 'Đang đồng bộ qua Supabase'
+            : syncStatus === 'local'
+            ? 'Đang đồng bộ qua API local'
+            : syncStatus === 'loading'
+            ? 'Đang tải dữ liệu cộng đồng...'
+            : 'Community API chưa bật - đang dùng dữ liệu riêng trên trình duyệt này'}
+        </p>
       </div>
 
       <div className="community-layout">

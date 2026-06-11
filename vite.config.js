@@ -20,6 +20,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/auth-api/, ''),
         secure: false
+      },
+      // Shared Community forum backend (port 3001)
+      '/community-api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/community-api/, ''),
+        secure: false
       }
     }
   }

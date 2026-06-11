@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Home from './components/Home';
 import Survey from './components/Survey';
@@ -10,6 +10,7 @@ import Auth from './components/Auth';
 import AdminPanel from './components/AdminPanel';
 import Profile from './components/Profile';
 import ChatBox from './components/ChatBox';
+import { getSharedArray, seedSharedArray, setSharedArray } from './lib/sharedStore';
 
 // Defaults imported from component files (SVG-free, 100% JSON-safe for localStorage)
 const DEFAULT_DICT = MANNERS_DATA;
@@ -27,7 +28,7 @@ function App() {
   const [surveyScore, setSurveyScore] = useState(null);
   const [surveyRoadmap, setSurveyRoadmap] = useState(null);
 
-  // Load user session on mount
+  // Load user session and shared content on mount
   useEffect(() => {
     const session = localStorage.getItem('session_user');
     if (session) {
@@ -40,34 +41,31 @@ function App() {
       }
     }
 
-    // Load custom dictionary or fallback to defaults
-    const localDict = localStorage.getItem('nihon_dict');
-    if (localDict) {
-      try {
-        setDictionary(JSON.parse(localDict));
-      } catch (e) {
-        setDictionary(DEFAULT_DICT);
-        localStorage.setItem('nihon_dict', JSON.stringify(DEFAULT_DICT));
-      }
-    } else {
-      setDictionary(DEFAULT_DICT);
-      localStorage.setItem('nihon_dict', JSON.stringify(DEFAULT_DICT));
-    }
-
-    // Load custom roleplay or fallback to defaults
-    const localRole = localStorage.getItem('nihon_role');
-    if (localRole) {
-      try {
-        setRoleplay(JSON.parse(localRole));
-      } catch (e) {
-        setRoleplay(DEFAULT_ROLEPLAY);
-        localStorage.setItem('nihon_role', JSON.stringify(DEFAULT_ROLEPLAY));
-      }
-    } else {
-      setRoleplay(DEFAULT_ROLEPLAY);
-      localStorage.setItem('nihon_role', JSON.stringify(DEFAULT_ROLEPLAY));
-    }
+    seedSharedArray('dictionary', DEFAULT_DICT).then(setDictionary);
+    seedSharedArray('roleplay', DEFAULT_ROLEPLAY).then(setRoleplay);
   }, []);
+
+  useEffect(() => {
+    if (activeView !== 'dictionary' && activeView !== 'roleplay') return;
+
+    let isMounted = true;
+    const key = activeView === 'dictionary' ? 'dictionary' : 'roleplay';
+    const setState = activeView === 'dictionary' ? setDictionary : setRoleplay;
+
+    const refreshSharedContent = async () => {
+      const data = await getSharedArray(key, []);
+      if (!isMounted || !Array.isArray(data) || data.length === 0) return;
+      setState(data);
+    };
+
+    refreshSharedContent();
+    const interval = setInterval(refreshSharedContent, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeView]);
 
   const handleLogin = (user) => {
     setCurrentUser(user);
@@ -91,15 +89,16 @@ function App() {
     localStorage.setItem('session_user', JSON.stringify(updatedUser));
 
     // Update in database list
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const idx = users.findIndex(u => u.email === currentUser.email);
-    if (idx !== -1) {
-      users[idx] = {
-        ...users[idx],
-        ...updatedFields
-      };
-      localStorage.setItem('users', JSON.stringify(users));
-    }
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const idx = users.findIndex(u => u.email === currentUser.email);
+      if (idx !== -1) {
+        users[idx] = {
+          ...users[idx],
+          ...updatedFields
+        };
+        localStorage.setItem('users', JSON.stringify(users));
+        setSharedArray('users', users);
+      }
 
     // If name was updated, sync with community threads and replies
     if (updatedFields.name) {
@@ -138,31 +137,31 @@ function App() {
   const handleAddDictionary = (newItem) => {
     const updated = [...dictionary, newItem];
     setDictionary(updated);
-    localStorage.setItem('nihon_dict', JSON.stringify(updated));
+    setSharedArray('dictionary', updated);
   };
 
   const handleDeleteDictionary = (id) => {
     const updated = dictionary.filter(item => item.id !== id);
     setDictionary(updated);
-    localStorage.setItem('nihon_dict', JSON.stringify(updated));
+    setSharedArray('dictionary', updated);
   };
 
   const handleAddRoleplay = (newScenario) => {
     const updated = [...roleplay, newScenario];
     setRoleplay(updated);
-    localStorage.setItem('nihon_role', JSON.stringify(updated));
+    setSharedArray('roleplay', updated);
   };
 
   const handleUpdateRoleplay = (updatedScenario) => {
     const updated = roleplay.map(item => item.id === updatedScenario.id ? updatedScenario : item);
     setRoleplay(updated);
-    localStorage.setItem('nihon_role', JSON.stringify(updated));
+    setSharedArray('roleplay', updated);
   };
 
   const handleDeleteRoleplay = (id) => {
     const updated = roleplay.filter(item => item.id !== id);
     setRoleplay(updated);
-    localStorage.setItem('nihon_role', JSON.stringify(updated));
+    setSharedArray('roleplay', updated);
   };
 
   const handleSurveyComplete = (roadmap, score) => {

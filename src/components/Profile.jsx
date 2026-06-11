@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { User, Key, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { getSharedArray, setSharedArray } from '../lib/sharedStore';
 
 const AVATARS = [
   { id: 'avatar-1', emoji: '🧑‍💻', name: 'Developer Senpai' },
@@ -27,14 +28,14 @@ export default function Profile({ currentUser, onUpdateProfile }) {
   const [profileMsg, setProfileMsg] = useState({ type: '', text: '' });
   const [passMsg, setPassMsg] = useState({ type: '', text: '' });
 
-  const handleUpdateInfo = (e) => {
+  const handleUpdateInfo = async (e) => {
     e.preventDefault();
     if (!displayName.trim()) {
       setProfileMsg({ type: 'error', text: 'Tên hiển thị không được để trống.' });
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = await getSharedArray('users', []);
     const isNameTaken = users.some(u => u.email !== currentUser.email && u.name.trim().toLowerCase() === displayName.trim().toLowerCase());
     if (isNameTaken || displayName.trim().toLowerCase() === 'admin senpai') {
       setProfileMsg({ type: 'error', text: 'Tên hiển thị này đã tồn tại! Vui lòng chọn tên khác.' });
@@ -51,7 +52,7 @@ export default function Profile({ currentUser, onUpdateProfile }) {
     setTimeout(() => setProfileMsg({ type: '', text: '' }), 4000);
   };
 
-  const handleUpdatePassword = (e) => {
+  const handleUpdatePassword = async (e) => {
     e.preventDefault();
     setPassMsg({ type: '', text: '' });
 
@@ -61,7 +62,7 @@ export default function Profile({ currentUser, onUpdateProfile }) {
     }
 
     // Get database from localStorage to verify and save
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = await getSharedArray('users', []);
     const userIdx = users.findIndex(u => u.email === currentUser.email);
 
     if (userIdx === -1) {
@@ -86,7 +87,7 @@ export default function Profile({ currentUser, onUpdateProfile }) {
 
     // Update inside list
     users[userIdx].password = newPassword;
-    localStorage.setItem('users', JSON.stringify(users));
+    await setSharedArray('users', users);
 
     // Update session info
     onUpdateProfile({ password: newPassword });
@@ -379,7 +380,7 @@ function SecurityQuestionSection({ currentUser, onUpdateProfile }) {
   const [answer, setAnswer] = useState(dbUser.securityAnswer || '');
   const [msg, setMsg] = useState({ type: '', text: '' });
 
-  const handleSaveQuestion = (e) => {
+  const handleSaveQuestion = async (e) => {
     e.preventDefault();
     setMsg({ type: '', text: '' });
 
@@ -388,14 +389,15 @@ function SecurityQuestionSection({ currentUser, onUpdateProfile }) {
       return;
     }
 
-    const updatedUsers = users.map(u => {
+    const latestUsers = await getSharedArray('users', users);
+    const updatedUsers = latestUsers.map(u => {
       if (u.email === currentUser.email) {
         return { ...u, securityQuestion: question, securityAnswer: answer.trim() };
       }
       return u;
     });
 
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    await setSharedArray('users', updatedUsers);
     
     // Sync into currentUser session state
     onUpdateProfile({
