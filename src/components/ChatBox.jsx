@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, X, Minimize2, Maximize2, Bot, Users, Sparkles, Cpu, Wifi, WifiOff } from 'lucide-react';
+import { MessageSquare, Send, X, Minimize2, Maximize2, Bot, Users, Cpu, WifiOff, Sparkles } from 'lucide-react';
 
-// Use VITE_OLLAMA_URL env var (ngrok URL for Vercel deploy) or fall back to local Vite proxy
+// AI config — auto-detects best available backend
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 const OLLAMA_BASE_URL = import.meta.env.VITE_OLLAMA_URL || '/ollama';
-const OLLAMA_MODEL = 'gemma3:latest';
+const OLLAMA_MODEL = 'gemini-3-flash-preview:latest'; // Cloud model via Ollama
 
 const SYSTEM_PROMPT = `Bạn là AI hỗ trợ tích hợp trên nền tảng NihonLink - nền tảng hỗ trợ người Việt Nam làm việc tại Nhật Bản.
 Nhiệm vụ của bạn:
@@ -65,16 +66,16 @@ export default function ChatBox({ currentUser }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [chatMode, setChatMode] = useState('ai');
   const [inputValue, setInputValue] = useState('');
-  const [ollamaStatus, setOllamaStatus] = useState('checking'); // 'checking' | 'online' | 'offline'
+  // aiMode: 'gemini' | 'ollama' | 'offline'
+  const [aiMode, setAiMode] = useState(GEMINI_API_KEY ? 'gemini' : 'checking');
   const [isStreaming, setIsStreaming] = useState(false);
 
+  const welcomeText = GEMINI_API_KEY
+    ? 'Chào bạn! Mình là AI Trợ Lý NihonLink, chạy bằng Gemini AI ✨ Hỏi mình bất cứ điều gì về văn hóa doanh nghiệp Nhật, phỏng vấn, viết CV hay cuộc sống tại Nhật nhé! 🤖'
+    : 'Chào bạn! Mình là AI Trợ Lý NihonLink. Đang kết nối với Ollama... Hỏi mình về văn hóa Nhật, phỏng vấn, viết CV nhé! 🌸';
+
   const [aiMessages, setAiMessages] = useState([
-    {
-      id: 1,
-      sender: 'bot',
-      text: 'Chào bạn! Mình là AI Trợ Lý của NihonLink, chạy bằng Gemma3 trên máy bạn (hoàn toàn offline). Hỏi mình bất cứ điều gì về văn hóa doanh nghiệp Nhật, phỏng vấn, viết CV hay cuộc sống tại Nhật nhé! 🤖✨',
-      time: 'Vừa xong'
-    }
+    { id: 1, sender: 'bot', text: welcomeText, time: 'Vừa xong' }
   ]);
   const [senpaiMinhMessages, setSenpaiMinhMessages] = useState(DEFAULT_SENPAI_MESSAGES.minh);
   const [senpaiTrangMessages, setSenpaiTrangMessages] = useState(DEFAULT_SENPAI_MESSAGES.trang);
@@ -86,8 +87,12 @@ export default function ChatBox({ currentUser }) {
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // Check Ollama status on mount
+  // If Gemini API key is set, skip Ollama check
   useEffect(() => {
+    if (GEMINI_API_KEY) {
+      setAiMode('gemini');
+      return;
+    }
     checkOllamaStatus();
     const interval = setInterval(checkOllamaStatus, 15000); // re-check every 15s
     return () => clearInterval(interval);
@@ -100,14 +105,15 @@ export default function ChatBox({ currentUser }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Check if gemma3 model exists
-        const hasModel = data.models?.some(m => m.name.includes('gemma3'));
-        setOllamaStatus(hasModel ? 'online' : 'no_model');
+        const hasModel = data.models?.some(m =>
+          m.name.includes('gemini-3-flash-preview') || m.name.includes('gemma3') || m.name.includes('llama')
+        );
+        setAiMode(hasModel ? 'ollama' : 'offline');
       } else {
-        setOllamaStatus('offline');
+        setAiMode('offline');
       }
     } catch {
-      setOllamaStatus('offline');
+      setAiMode('offline');
     }
   };
 
@@ -115,9 +121,53 @@ export default function ChatBox({ currentUser }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [aiMessages, senpaiMinhMessages, senpaiTrangMessages, isTyping, chatMode, isOpen, isMinimized, streamingText]);
 
+  // --- Gemini API streaming (for Vercel deploy) ---
+  const callGeminiStreaming = async (userText, onChunk, onDone, onError) => {
+    abortControllerRef.current = new AbortController();
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: abortControllerRef.current.signal,
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: userText }] }],
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            generationConfig: { maxOutputTokens: 400, temperature: 0.7 }
+          })
+        }
+      );
+      if (!res.ok) throw new Error(`Gemini ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        // SSE format: each line starts with 'data: '
+        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line.slice(6));
+            const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (text) { fullText += text; onChunk(fullText); }
+          } catch { /* skip */ }
+        }
+      }
+      onDone(fullText);
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      onError(error);
+    }
+  };
+
+  // --- Ollama streaming (for local dev with Ollama cloud model) ---
   const callOllamaStreaming = async (userText, onChunk, onDone, onError) => {
     abortControllerRef.current = new AbortController();
-
     try {
       const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
         method: 'POST',
@@ -130,42 +180,27 @@ export default function ChatBox({ currentUser }) {
             { role: 'user', content: userText }
           ],
           stream: true,
-          options: {
-            temperature: 0.7,
-            num_predict: 400
-          }
+          options: { temperature: 0.7, num_predict: 400 }
         })
       });
-
       if (!response.ok) {
         const errText = await response.text();
         throw new Error(`Ollama ${response.status}: ${errText}`);
       }
-
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = '';
-
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n').filter(l => l.trim());
-
         for (const line of lines) {
           try {
             const parsed = JSON.parse(line);
-            // /api/chat returns { message: { content: '...' }, done: bool }
-            if (parsed.message?.content) {
-              fullText += parsed.message.content;
-              onChunk(fullText);
-            }
-            if (parsed.done) {
-              onDone(fullText);
-              return;
-            }
-          } catch { /* skip malformed JSON */ }
+            if (parsed.message?.content) { fullText += parsed.message.content; onChunk(fullText); }
+            if (parsed.done) { onDone(fullText); return; }
+          } catch { /* skip */ }
         }
       }
       onDone(fullText);
@@ -188,64 +223,56 @@ export default function ChatBox({ currentUser }) {
     if (chatMode === 'ai') {
       setAiMessages(prev => [...prev, userMsg]);
 
-      if (ollamaStatus === 'online') {
-        // Streaming mode with Ollama
+      const callFn = aiMode === 'gemini' ? callGeminiStreaming
+                   : aiMode === 'ollama' ? callOllamaStreaming
+                   : null;
+
+      if (callFn) {
         setIsStreaming(true);
         setStreamingText('');
-
         const streamId = Date.now() + 1;
 
-        callOllamaStreaming(
+        callFn(
           userText,
-          (partialText) => {
-            setStreamingText(partialText);
-          },
+          (partialText) => setStreamingText(partialText),
           (finalText) => {
-            const responseTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             setAiMessages(prev => [...prev, {
               id: streamId,
               sender: 'bot',
               text: finalText || 'Xin lỗi, tôi không tạo được phản hồi. Thử lại nhé!',
-              time: responseTime
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }]);
             setStreamingText('');
             setIsStreaming(false);
           },
           (error) => {
-            console.error('Ollama error:', error);
+            console.error('AI error:', error);
             setAiMessages(prev => [...prev, {
               id: Date.now() + 2,
               sender: 'bot',
-              text: '⚠️ Không thể kết nối với Ollama. Đảm bảo Ollama đang chạy và model gemma3 đã được tải.',
+              text: aiMode === 'gemini'
+                ? '⚠️ Lỗi kết nối Gemini API. Kiểm tra lại API key trong cài đặt Vercel.'
+                : '⚠️ Lỗi kết nối Ollama. Đảm bảo Ollama đang chạy với model gemini-3-flash-preview.',
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }]);
             setStreamingText('');
             setIsStreaming(false);
-            setOllamaStatus('offline');
+            if (aiMode === 'ollama') setAiMode('offline');
           }
         );
       } else {
-        // Fallback to mock responses
+        // Fallback mock responses
         setIsTyping(true);
         setTimeout(() => {
           const query = userText.toLowerCase();
-          let matchedResponse = null;
-
-          for (const item of AI_RESPONSES_FALLBACK) {
-            if (item.keywords.some(kw => query.includes(kw))) {
-              matchedResponse = item.response;
-              break;
-            }
-          }
-
+          let matchedResponse = AI_RESPONSES_FALLBACK.find(
+            item => item.keywords.some(kw => query.includes(kw))
+          )?.response;
           if (!matchedResponse) {
-            matchedResponse = `[Chế độ offline] Cảm ơn câu hỏi về "${userText}". Để kết nối AI thật, hãy đảm bảo Ollama đang chạy trên máy bạn với model gemma3. Trong lúc đó, hãy thử hỏi về CV, phỏng vấn, Nomikai, Ojigi, hoặc HouRenSo! 🌸`;
+            matchedResponse = `[Chế độ giả lập] Cảm ơn câu hỏi về "${userText}". Hiện AI chưa được kết nối. Hãy thử hỏi về: CV, phỏng vấn, Nomikai, Ojigi, HouRenSo! 🌸`;
           }
-
           setAiMessages(prev => [...prev, {
-            id: Date.now() + 1,
-            sender: 'bot',
-            text: matchedResponse,
+            id: Date.now() + 1, sender: 'bot', text: matchedResponse,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }]);
           setIsTyping(false);
