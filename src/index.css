@@ -1022,6 +1022,15 @@ body {
 
 /* Printing styles for Rirekisho */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 0; /* Removes default headers (localhost, URL, page numbers) and footers */
+  }
+  body {
+    background: #fff;
+    margin: 0;
+    padding: 0;
+  }
   body * {
     visibility: hidden;
   }
@@ -1032,12 +1041,15 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 210mm; /* A4 Width */
+    height: 297mm; /* A4 Height */
     border: none;
-    padding: 0;
-    margin: 0;
+    padding: 10mm 15mm; /* Inner padding inside the A4 sheet instead of margin */
+    margin: 0 auto;
+    box-sizing: border-box;
+    box-shadow: none !important;
   }
-  .rirekisho-header-actions, .navbar, .cv-form-panel {
+  .rirekisho-header-actions, .navbar, .cv-form-panel, footer {
     display: none !important;
   }
 }

@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Lock, Mail, User, ArrowRight, HelpCircle, CheckCircle } from 'lucide-react';
+import { Lock, Mail, User, ArrowRight, HelpCircle, CheckCircle, ShieldQuestion } from 'lucide-react';
+
+const SECURITY_QUESTIONS = [
+  "Tên thú cưng đầu tiên của bạn là gì?",
+  "Trường tiểu học của bạn tên là gì?",
+  "Thành phố nơi bạn đã sinh ra là gì?",
+  "Món ăn yêu thích nhất của bạn là gì?",
+  "Tên thần tượng thời thơ ấu của bạn là gì?"
+];
 
 export default function Auth({ onLogin }) {
   const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot'
@@ -7,106 +15,96 @@ export default function Auth({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
+  // Registration security question states
+  const [securityQuestion, setSecurityQuestion] = useState(SECURITY_QUESTIONS[0]);
+  const [securityAnswer, setSecurityAnswer] = useState('');
+
   // Forgot password flow states
-  const [otpSent, setOtpSent] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [enteredOtp, setEnteredOtp] = useState('');
+  const [userFound, setUserFound] = useState(false);
+  const [userQuestion, setUserQuestion] = useState('');
+  const [userAnswerInput, setUserAnswerInput] = useState('');
+  const [answerVerified, setAnswerVerified] = useState(false);
   const [newPassword, setNewPassword] = useState('');
-  
+  const [foundUserEmail, setFoundUserEmail] = useState('');
+
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [sendingOtp, setSendingOtp] = useState(false);
 
-  // Gửi OTP thật miễn phí qua API dịch vụ mail công cộng
-  const handleSendOtp = async (e) => {
+  // Bước 1: Tìm tài khoản theo email → lấy câu hỏi bảo mật
+  const handleFindAccount = (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
-    setSendingOtp(true);
 
-    const isSystemAdmin = email === 'admin@nihon.com';
     const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userExists = users.some(u => u.email === email);
+    const found = users.find(u => u.email === email);
 
-    if (!isSystemAdmin && !userExists) {
-      setErrorMsg('Không tìm thấy tài khoản nào với địa chỉ Email này.');
-      setSendingOtp(false);
-      return;
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(otp);
-
-    try {
-      // Gửi OTP real sử dụng API gửi mail tức thời qua formspree / web3forms hoặc email public API
-      // Sử dụng Web3Forms API miễn phí, không cần cấu hình SMTP, nhận mail tức thì
-      const response = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          access_key: '6ea3c0a1-4328-40a2-a0b2-4d2be7ec5488', // Web3Forms Key công cộng an toàn cho Frontend
-          subject: '[Nihon Career Ready] Mã xác thực OTP khôi phục mật khẩu',
-          from_name: 'Nihon Career Ready',
-          to_email: email, // Gửi thẳng đến mail thật của người dùng
-          email: 'support@nihoncareer.com',
-          message: `Chào bạn,\n\nMã xác thực OTP của bạn để khôi phục mật khẩu trên hệ thống Nihon Career Ready là: ${otp}\n\nVui lòng nhập mã này vào trang web để đổi mật khẩu mới.\n\nTrân trọng,\nĐội ngũ Nihon Career Ready.`
-        })
-      });
-
-      if (response.ok) {
-        setOtpSent(true);
-        setSuccessMsg(`Mã OTP đã được gửi THẬT tới hòm thư ${email} của bạn! Vui lòng kiểm tra mục Inbox hoặc Spam (Thư rác).`);
-      } else {
-        throw new Error('API Error');
+    if (found) {
+      if (!found.securityQuestion) {
+        setErrorMsg('Tài khoản này chưa thiết lập câu hỏi bảo mật. Vui lòng liên hệ quản trị viên.');
+        return;
       }
-    } catch (error) {
-      // Fallback nếu API lỗi mạng để không block người dùng test
-      setOtpSent(true);
-      setSuccessMsg(`[Lưu ý: Sự cố gửi mail thật, mô phỏng kích hoạt] Đã gửi mã xác nhận tới: ${email}`);
-      console.log('OTP Code generated:', otp);
-    } finally {
-      setSendingOtp(false);
+      setFoundUserEmail(found.email);
+      setUserQuestion(found.securityQuestion);
+      setUserFound(true);
+    } else if (email === 'admin@nihon.com') {
+      setErrorMsg('Tài khoản Admin không thể khôi phục qua câu hỏi bảo mật.');
+    } else {
+      setErrorMsg('Không tìm thấy tài khoản nào khớp với Email này.');
     }
   };
 
-  const handleVerifyAndReset = (e) => {
+  // Bước 2: Xác minh câu trả lời bí mật
+  const handleVerifyAnswer = (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (enteredOtp !== generatedOtp) {
-      setErrorMsg('Mã OTP không chính xác. Vui lòng nhập đúng mã xác thực.');
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const found = users.find(u => u.email === foundUserEmail);
+
+    if (!found) {
+      setErrorMsg('Không tìm thấy tài khoản.');
       return;
     }
+
+    if (found.securityAnswer?.trim().toLowerCase() === userAnswerInput.trim().toLowerCase()) {
+      setAnswerVerified(true);
+      setSuccessMsg('Trả lời đúng! Vui lòng nhập mật khẩu mới.');
+    } else {
+      setErrorMsg('Câu trả lời không đúng. Vui lòng thử lại.');
+    }
+  };
+
+  // Bước 3: Đặt mật khẩu mới
+  const handleResetPassword = (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
 
     if (newPassword.length < 6) {
       setErrorMsg('Mật khẩu mới phải từ 6 ký tự trở lên.');
       return;
     }
 
-    if (email === 'admin@nihon.com') {
-      setErrorMsg('Không thể đổi mật khẩu tài khoản Admin mặc định hệ thống.');
-      return;
-    }
-
     const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIdx = users.findIndex(u => u.email === email);
+    const userIdx = users.findIndex(u => u.email === foundUserEmail);
 
     if (userIdx !== -1) {
       users[userIdx].password = newPassword;
       localStorage.setItem('users', JSON.stringify(users));
-      setSuccessMsg('Đặt lại mật khẩu thành công! Hãy đăng nhập bằng mật khẩu mới.');
-      setAuthMode('login');
-      // Reset state
-      setOtpSent(false);
-      setGeneratedOtp('');
-      setEnteredOtp('');
-      setNewPassword('');
+      setSuccessMsg('Đặt lại mật khẩu thành công! Hãy đăng nhập.');
+      setTimeout(() => {
+        setAuthMode('login');
+        setUserFound(false);
+        setAnswerVerified(false);
+        setUserAnswerInput('');
+        setNewPassword('');
+        setFoundUserEmail('');
+        setUserQuestion('');
+      }, 1500);
     } else {
-      setErrorMsg('Đã có lỗi xảy ra. Hãy thử lại.');
+      setErrorMsg('Không tìm thấy tài khoản để cập nhật.');
     }
   };
 
@@ -141,8 +139,8 @@ export default function Auth({ onLogin }) {
         setErrorMsg('Sai email hoặc mật khẩu! Vui lòng kiểm tra lại.');
       }
     } else if (authMode === 'register') {
-      if (!name || !email || !password) {
-        setErrorMsg('Vui lòng điền đầy đủ thông tin.');
+      if (!name || !email || !password || !securityAnswer) {
+        setErrorMsg('Vui lòng điền đầy đủ tất cả thông tin.');
         return;
       }
 
@@ -152,21 +150,29 @@ export default function Auth({ onLogin }) {
         return;
       }
 
+      if (users.some(u => u.name.trim().toLowerCase() === name.trim().toLowerCase()) || name.trim().toLowerCase() === 'admin senpai') {
+        setErrorMsg('Tên hiển thị này đã tồn tại! Vui lòng chọn tên khác.');
+        return;
+      }
+
       const newUser = { 
         name, 
         email, 
         password,
         avatar: '🧑‍💻',
         bio: '',
-        careerGoal: 'Software Engineer (Japan)'
+        careerGoal: 'Software Engineer (Japan)',
+        securityQuestion,
+        securityAnswer
       };
       users.push(newUser);
       localStorage.setItem('users', JSON.stringify(users));
 
-      setSuccessMsg('Đăng ký tài khoản thành công! Hãy đăng nhập.');
+      setSuccessMsg('Đăng ký tài khoản kèm câu hỏi bảo mật thành công! Hãy đăng nhập.');
       setAuthMode('login');
       setName('');
       setPassword('');
+      setSecurityAnswer('');
     }
   };
 
@@ -176,14 +182,14 @@ export default function Auth({ onLogin }) {
         <div className="auth-header">
           <div className="logo-circle" style={{ margin: '0 auto 1rem auto', width: '32px', height: '32px' }}></div>
           <h2 className="auth-title">
-            {authMode === 'login' ? 'Đăng Nhập' : authMode === 'register' ? 'Tạo Tài Khoản' : 'Đặt Lại Mật Khẩu'}
+            {authMode === 'login' ? 'Đăng Nhập' : authMode === 'register' ? 'Tạo Tài Khoản' : 'Khôi Phục Mật Khẩu'}
           </h2>
           <p className="auth-subtitle">
             {authMode === 'login' 
               ? 'Đăng nhập để học quy tắc văn hóa Nhật Bản' 
               : authMode === 'register' 
               ? 'Đăng ký thành viên Nihon Career Ready'
-              : 'Xác minh OTP & Đặt mật khẩu mới'
+              : 'Xác minh danh tính qua câu hỏi bảo mật'
             }
           </p>
         </div>
@@ -200,20 +206,12 @@ export default function Auth({ onLogin }) {
           </div>
         )}
 
-        {/* Luôn hiển thị thêm mã dự phòng ở log/console để admin kiểm tra trong trường hợp mạng lỗi */}
-        {generatedOtp && otpSent && authMode === 'forgot' && (
-          <div style={{ border: '2px dashed var(--jp-blue)', padding: '0.75rem', background: '#f8fafc', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)', display: 'block' }}>
-              🔑 Mã dự phòng (Chỉ hiển thị để bạn test nhanh): <strong>{generatedOtp}</strong>
-            </span>
-          </div>
-        )}
-
         {authMode === 'forgot' ? (
-          !otpSent ? (
-            <form onSubmit={handleSendOtp}>
+          !userFound ? (
+            // Bước 1: Nhập email để tìm tài khoản
+            <form onSubmit={handleFindAccount}>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label">Email của bạn (Nhập email thật để nhận thư)</label>
+                <label className="form-label">Email tài khoản của bạn</label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--jp-text-muted)' }} />
                   <input
@@ -227,65 +225,103 @@ export default function Auth({ onLogin }) {
                   />
                 </div>
               </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={sendingOtp}>
-                {sendingOtp ? 'Đang gửi mail OTP thật...' : 'Gửi mã xác nhận OTP'} <ArrowRight size={16} />
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                Tìm tài khoản <ArrowRight size={16} />
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleVerifyAndReset}>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label">Nhập mã xác nhận OTP (Đã gửi về hòm thư của bạn)</label>
+          ) : !answerVerified ? (
+            // Bước 2: Trả lời câu hỏi bảo mật
+            <form onSubmit={handleVerifyAnswer}>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <div style={{ background: 'rgba(var(--jp-blue-rgb, 37,99,235), 0.07)', borderLeft: '3px solid var(--jp-blue)', padding: '0.75rem 1rem', borderRadius: 'var(--jp-radius)', marginBottom: '1rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)', display: 'block', marginBottom: '0.25rem' }}>Câu hỏi bảo mật của bạn:</span>
+                  <strong style={{ color: 'var(--jp-text)', fontSize: '0.9rem' }}>🔒 {userQuestion}</strong>
+                </div>
+                <label className="form-label">Câu trả lời của bạn</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Nhập 6 số..."
-                  value={enteredOtp}
-                  onChange={(e) => setEnteredOtp(e.target.value)}
-                  maxLength={6}
+                  placeholder="Nhập câu trả lời bí mật..."
+                  value={userAnswerInput}
+                  onChange={(e) => setUserAnswerInput(e.target.value)}
                   required
                 />
+                <span style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)', display: 'block', marginTop: '0.5rem' }}>
+                  Nhập đúng câu trả lời bạn đã đặt khi đăng ký.
+                </span>
               </div>
-
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                Xác nhận câu trả lời <ArrowRight size={16} />
+              </button>
+            </form>
+          ) : (
+            // Bước 3: Đặt mật khẩu mới
+            <form onSubmit={handleResetPassword}>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label">Mật khẩu mới</label>
+                <label className="form-label">Đặt mật khẩu mới</label>
                 <div style={{ position: 'relative' }}>
                   <Lock size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--jp-text-muted)' }} />
                   <input
                     type="password"
                     className="form-input"
                     style={{ paddingLeft: '2.25rem' }}
-                    placeholder="Tối thiểu 6 ký tự..."
+                    placeholder="Mật khẩu mới tối thiểu 6 ký tự..."
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
                   />
                 </div>
               </div>
-
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                Đặt lại mật khẩu <CheckCircle size={16} />
+                Cập nhật mật khẩu mới <CheckCircle size={16} />
               </button>
             </form>
           )
         ) : (
           <form onSubmit={handleSubmit}>
             {authMode === 'register' && (
-              <div className="form-group">
-                <label className="form-label">Tên của bạn</label>
-                <div style={{ position: 'relative' }}>
-                  <User size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--jp-text-muted)' }} />
+              <>
+                <div className="form-group">
+                  <label className="form-label">Tên của bạn</label>
+                  <div style={{ position: 'relative' }}>
+                    <User size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--jp-text-muted)' }} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ paddingLeft: '2.25rem' }}
+                      placeholder="Nguyễn Văn A"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600 }}>Chọn câu hỏi bảo mật (Dùng để lấy lại mật khẩu)</label>
+                  <select 
+                    className="form-input"
+                    value={securityQuestion}
+                    onChange={(e) => setSecurityQuestion(e.target.value)}
+                  >
+                    {SECURITY_QUESTIONS.map((q, idx) => (
+                      <option key={idx} value={q}>{q}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600 }}>Câu trả lời bí mật</label>
                   <input
                     type="text"
                     className="form-input"
-                    style={{ paddingLeft: '2.25rem' }}
-                    placeholder="Nguyễn Văn A"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nhập câu trả lời để khôi phục sau này..."
+                    value={securityAnswer}
+                    onChange={(e) => setSecurityAnswer(e.target.value)}
                     required
                   />
                 </div>
-              </div>
+              </>
             )}
 
             <div className="form-group">
@@ -333,7 +369,9 @@ export default function Auth({ onLogin }) {
                 setAuthMode('forgot');
                 setErrorMsg('');
                 setSuccessMsg('');
-                setOtpSent(false);
+                setUserFound(false);
+                setAnswerVerified(false);
+                setUserAnswerInput('');
               }}
               style={{ background: 'none', border: 'none', color: 'var(--jp-red)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
             >
@@ -350,7 +388,9 @@ export default function Auth({ onLogin }) {
                 setAuthMode(authMode === 'login' ? 'register' : 'login');
                 setErrorMsg('');
                 setSuccessMsg('');
-                setOtpSent(false);
+                setUserFound(false);
+                setAnswerVerified(false);
+                setUserAnswerInput('');
               }}
               style={{ background: 'none', border: 'none', color: 'var(--jp-blue)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
             >

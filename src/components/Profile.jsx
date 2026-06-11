@@ -34,6 +34,13 @@ export default function Profile({ currentUser, onUpdateProfile }) {
       return;
     }
 
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const isNameTaken = users.some(u => u.email !== currentUser.email && u.name.trim().toLowerCase() === displayName.trim().toLowerCase());
+    if (isNameTaken || displayName.trim().toLowerCase() === 'admin senpai') {
+      setProfileMsg({ type: 'error', text: 'Tên hiển thị này đã tồn tại! Vui lòng chọn tên khác.' });
+      return;
+    }
+
     onUpdateProfile({
       name: displayName,
       avatar,
@@ -190,11 +197,72 @@ export default function Profile({ currentUser, onUpdateProfile }) {
                 onChange={(e) => setCareerGoal(e.target.value)}
                 style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--jp-border)', borderRadius: '4px' }}
               >
-                <option value="IT Communicator (Comtor)">IT Communicator (Comtor)</option>
-                <option value="Software Engineer (Japan)">Kỹ sư phần mềm (Bridge SE / Developer)</option>
-                <option value="Business Analyst (BA)">Phân tích nghiệp vụ (BA)</option>
-                <option value="Foreign Trade Specialist">Nhân viên Xuất Nhập Khẩu</option>
-                <option value="Japanese Teacher / Interpreter">Giảng viên / Phiên dịch viên tiếng Nhật</option>
+                {/* Nhóm IT & Công nghệ */}
+                <optgroup label="💻 IT & Công nghệ">
+                  <option value="IT Communicator (Comtor)">IT Communicator (Comtor)</option>
+                  <option value="Software Engineer (Japan)">Kỹ sư phần mềm (Bridge SE / Developer)</option>
+                  <option value="Business Analyst (BA)">Phân tích nghiệp vụ (BA)</option>
+                  <option value="QA/QC Engineer">Kỹ sư kiểm thử phần mềm (QA/QC)</option>
+                  <option value="IT Project Manager">Quản lý dự án IT (IT PM)</option>
+                  <option value="Data Analyst / Data Scientist">Phân tích dữ liệu / Data Scientist</option>
+                  <option value="UI/UX Designer">Thiết kế giao diện (UI/UX Designer)</option>
+                  <option value="Network / Infrastructure Engineer">Kỹ sư hạ tầng / Mạng máy tính</option>
+                </optgroup>
+
+                {/* Nhóm Kinh doanh & Thương mại */}
+                <optgroup label="🌏 Kinh doanh & Thương mại">
+                  <option value="International Business Specialist">Kinh doanh Quốc tế (International Business)</option>
+                  <option value="Import-Export & Logistics Officer">Xuất Nhập Khẩu & Logistics</option>
+                  <option value="Global Marketing Executive">Marketing toàn cầu (Global Marketing)</option>
+                  <option value="Sales Manager / Business Development">Kinh doanh & Phát triển thị trường (BDM)</option>
+                  <option value="E-Commerce & Digital Marketing Specialist">E-Commerce & Tiếp thị số</option>
+                  <option value="Supply Chain Manager">Quản lý chuỗi cung ứng (Supply Chain)</option>
+                  <option value="Purchasing & Procurement Officer">Mua hàng & Đấu thầu (Procurement)</option>
+                </optgroup>
+
+                {/* Nhóm Tài chính & Kế toán */}
+                <optgroup label="💴 Tài chính & Kế toán">
+                  <option value="Accountant / Auditor (Japan)">Kế toán / Kiểm toán viên Nhật Bản</option>
+                  <option value="Financial Analyst">Phân tích tài chính (Financial Analyst)</option>
+                  <option value="Banking & Finance Officer">Ngân hàng & Tài chính quốc tế</option>
+                  <option value="Tax Consultant / CPA">Tư vấn thuế / Kế toán công chứng (CPA)</option>
+                </optgroup>
+
+                {/* Nhóm Du lịch & Khách sạn */}
+                <optgroup label="🏨 Du lịch & Khách sạn">
+                  <option value="Hotel & Hospitality Manager">Quản lý Khách sạn & Dịch vụ (Hospitality)</option>
+                  <option value="Tourism & Travel Consultant">Hướng dẫn viên / Tư vấn Du lịch Nhật Bản</option>
+                  <option value="Restaurant & F&B Manager">Quản lý Nhà hàng & F&B</option>
+                  <option value="Airline Ground Staff / Cabin Crew">Nhân viên Hàng không / Tiếp viên</option>
+                </optgroup>
+
+                {/* Nhóm Ngôn ngữ & Giáo dục */}
+                <optgroup label="📚 Ngôn ngữ & Giáo dục">
+                  <option value="Japanese Teacher / Interpreter">Giảng viên / Phiên dịch viên tiếng Nhật</option>
+                  <option value="Professional Translator (JP-VI)">Biên / Phiên dịch chuyên nghiệp (Nhật - Việt)</option>
+                  <option value="Education Consultant (Study Abroad Japan)">Tư vấn du học Nhật Bản</option>
+                  <option value="Content Creator / Media (Japan)">Sáng tạo nội dung / Truyền thông Nhật Bản</option>
+                </optgroup>
+
+                {/* Nhóm Nhân sự & Hành chính */}
+                <optgroup label="🏢 Nhân sự & Hành chính">
+                  <option value="Human Resources (HR) Specialist">Nhân sự (HR) / Tuyển dụng quốc tế</option>
+                  <option value="General Affairs / Admin Officer">Hành chính tổng hợp</option>
+                  <option value="Legal / Compliance Officer">Pháp lý & Tuân thủ (Legal/Compliance)</option>
+                </optgroup>
+
+                {/* Nhóm Sản xuất & Kỹ thuật */}
+                <optgroup label="⚙️ Sản xuất & Kỹ thuật">
+                  <option value="Manufacturing Engineer (Monozukuri)">Kỹ sư sản xuất (Monozukuri)</option>
+                  <option value="Quality Control Manager">Quản lý chất lượng (Quality Control)</option>
+                  <option value="Mechanical / Electrical Engineer">Kỹ sư cơ điện / Tự động hóa</option>
+                </optgroup>
+
+                {/* Khác */}
+                <optgroup label="🌟 Khác">
+                  <option value="Entrepreneur / Startup Japan">Khởi nghiệp tại Nhật Bản (Startup)</option>
+                  <option value="Other">Lĩnh vực khác</option>
+                </optgroup>
               </select>
             </div>
 

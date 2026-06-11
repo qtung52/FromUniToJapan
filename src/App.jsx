@@ -99,6 +99,39 @@ function App() {
       };
       localStorage.setItem('users', JSON.stringify(users));
     }
+
+    // If name was updated, sync with community threads and replies
+    if (updatedFields.name) {
+      const threads = JSON.parse(localStorage.getItem('nihon_threads') || '[]');
+      const updatedThreads = threads.map(t => {
+        let threadChanged = false;
+        let newAuthor = t.author;
+        if (t.authorEmail === currentUser.email) {
+          newAuthor = updatedFields.name;
+          threadChanged = true;
+        }
+        
+        const updatedAnswers = t.answers.map(ans => {
+          if (ans.authorEmail === currentUser.email) {
+            return { ...ans, author: updatedFields.name };
+          }
+          return ans;
+        });
+
+        const answersChanged = JSON.stringify(t.answers) !== JSON.stringify(updatedAnswers);
+
+        if (threadChanged || answersChanged) {
+          return {
+            ...t,
+            author: newAuthor,
+            answers: updatedAnswers
+          };
+        }
+        return t;
+      });
+
+      localStorage.setItem('nihon_threads', JSON.stringify(updatedThreads));
+    }
   };
 
   const handleAddDictionary = (newItem) => {

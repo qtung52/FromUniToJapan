@@ -44,6 +44,47 @@ const INITIAL_THREADS = [
   }
 ];
 
+// Format timestamp: Date → 'DD/MM/YYYY lúc HH:mm (X phút/giờ trước)'
+function formatDate(isoString) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d)) return isoString;
+  
+  const pad = (n) => String(n).padStart(2, '0');
+  const calendarStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} lúc ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  
+  const now = new Date();
+  const diffMs = now - d;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  let relativeStr = '';
+  if (diffSec < 60) {
+    relativeStr = 'vừa xong';
+  } else if (diffMin < 60) {
+    relativeStr = `${diffMin} phút trước`;
+  } else if (diffHr < 24) {
+    relativeStr = `${diffHr} giờ trước`;
+  } else {
+    relativeStr = `${diffDay} ngày trước`;
+  }
+
+  return `${calendarStr} (${relativeStr})`;
+}
+
+// Mask email for privacy: nguyen.van.a@gmail.com → ngu****@***.com
+function maskEmail(email) {
+  if (!email) return 'Ẩn danh';
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const maskedLocal = local.slice(0, Math.min(3, local.length)) + '****';
+  const domainParts = domain.split('.');
+  const maskedDomain = '***.' + domainParts[domainParts.length - 1];
+  return `${maskedLocal}@${maskedDomain}`;
+}
+
 export default function Community({ currentUser }) {
   const [threads, setThreads] = useState([]);
   const [activeTag, setActiveTag] = useState('all');
@@ -85,7 +126,7 @@ export default function Community({ currentUser }) {
       title: newTitle,
       author: currentUser ? currentUser.name : "Học viên ẩn danh",
       authorEmail: currentUser ? currentUser.email : "anonymous@nihon.com",
-      date: "Vừa xong",
+      date: new Date().toISOString(),
       content: newContent,
       answers: []
     };
@@ -112,7 +153,7 @@ export default function Community({ currentUser }) {
               author: currentUser ? currentUser.name : "Thành viên",
               authorEmail: currentUser ? currentUser.email : "anonymous@nihon.com",
               role: currentUser && currentUser.isAdmin ? "Senpai (Quản trị viên)" : "Kouhai (Học viên)",
-              date: "Vừa xong",
+              date: new Date().toISOString(),
               content: text.trim()
             }
           ]
@@ -178,13 +219,14 @@ export default function Community({ currentUser }) {
       });
     } else {
       // Fallback if user doesn't exist in current db (e.g. initial static threads data)
+      const safeEmail = email || '';
       setSelectedUserProfile({
         name: name,
-        email: email,
-        avatar: email.includes('minh') ? '👨‍💼' : email.includes('hieu') ? '🦊' : '🧑‍💻',
+        email: safeEmail,
+        avatar: safeEmail.includes('minh') ? '👨‍💼' : safeEmail.includes('hieu') ? '🦊' : '🧑‍💻',
         bio: 'Senpai giàu kinh nghiệm chia sẻ bài học về kỹ năng giao tiếp và ứng xử doanh nghiệp Nhật Bản.',
         careerGoal: role || 'Senpai / Cố vấn chuyên môn',
-        isAdmin: role.includes('Senpai') || role.includes('Tech Lead')
+        isAdmin: typeof role === 'string' && (role.includes('Senpai') || role.includes('Tech Lead'))
       });
     }
   };
@@ -239,7 +281,7 @@ export default function Community({ currentUser }) {
                         >
                           {thread.author}
                         </strong>{' '}
-                        • {thread.date}
+                        • {formatDate(thread.date) || thread.date}
                       </span>
                     </div>
                     {canDeleteThread && (
@@ -264,7 +306,7 @@ export default function Community({ currentUser }) {
                       const canDeleteReply = currentUser && (currentUser.isAdmin || currentUser.email === ans.authorEmail);
                       
                       return (
-                        <div key={ans.id} className="ans-card">
+                        <div key={ans.id || `ans-${Math.random()}`} className="ans-card">
                           <div className="ans-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span 
                               style={{ cursor: 'pointer' }}
@@ -276,7 +318,7 @@ export default function Community({ currentUser }) {
                               <span className="ans-badge" style={{ background: ans.role.includes('Senpai') || ans.role.includes('Lead') ? '#bc002d' : 'var(--jp-blue)' }}>{ans.role}</span>
                             </span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ color: 'var(--jp-text-muted)', fontSize: '0.75rem' }}>{ans.date}</span>
+                              <span style={{ color: 'var(--jp-text-muted)', fontSize: '0.75rem' }}>{formatDate(ans.date) || ans.date}</span>
                               {canDeleteReply && (
                                 <button
                                   onClick={() => handleDeleteReply(thread.id, ans.id)}
@@ -410,8 +452,10 @@ export default function Community({ currentUser }) {
               </div>
 
               <div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--jp-text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Địa chỉ Email</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--jp-text)', fontFamily: 'monospace' }}>{selectedUserProfile.email}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--jp-text-muted)', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Email (Đã ẩn)</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--jp-text)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  🔒 {maskEmail(selectedUserProfile.email)}
+                </span>
               </div>
             </div>
           </div>
