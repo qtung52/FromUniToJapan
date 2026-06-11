@@ -45,34 +45,14 @@ const INITIAL_THREADS = [
   }
 ];
 
-// Format timestamp: Date → 'DD/MM/YYYY lúc HH:mm (X phút/giờ trước)'
+// Format timestamp as a fixed calendar time so sample posts do not age differently per viewer.
 function formatDate(isoString) {
   if (!isoString) return '';
   const d = new Date(isoString);
   if (isNaN(d)) return isoString;
   
   const pad = (n) => String(n).padStart(2, '0');
-  const calendarStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} lúc ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  
-  const now = new Date();
-  const diffMs = now - d;
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-
-  let relativeStr;
-  if (diffSec < 60) {
-    relativeStr = 'vừa xong';
-  } else if (diffMin < 60) {
-    relativeStr = `${diffMin} phút trước`;
-  } else if (diffHr < 24) {
-    relativeStr = `${diffHr} giờ trước`;
-  } else {
-    relativeStr = `${diffDay} ngày trước`;
-  }
-
-  return `${calendarStr} (${relativeStr})`;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} lúc ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // Mask email for privacy: nguyen.van.a@gmail.com → ngu****@***.com
