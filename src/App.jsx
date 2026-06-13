@@ -40,6 +40,16 @@ function App() {
     if (session) {
       try {
         const parsedUser = JSON.parse(session);
+        
+        // Auto-sync roles from the database so users don't have to re-login
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const dbUser = users.find(u => u.email === parsedUser.email);
+        if (dbUser) {
+          parsedUser.isAdmin = !!dbUser.isAdmin;
+          parsedUser.isSenpai = !!dbUser.isSenpai;
+          localStorage.setItem('session_user', JSON.stringify(parsedUser));
+        }
+
         setCurrentUser(parsedUser);
         setActiveView('home');
       } catch (e) {
