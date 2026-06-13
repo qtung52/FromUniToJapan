@@ -42,7 +42,7 @@ export default function Profile({ currentUser, onUpdateProfile }) {
       return;
     }
 
-    onUpdateProfile({
+    await onUpdateProfile({
       name: displayName,
       avatar,
       bio,
@@ -90,7 +90,7 @@ export default function Profile({ currentUser, onUpdateProfile }) {
     await setSharedArray('users', users);
 
     // Update session info
-    onUpdateProfile({ password: newPassword });
+    await onUpdateProfile({ password: newPassword });
 
     setOldPassword('');
     setNewPassword('');

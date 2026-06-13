@@ -134,7 +134,7 @@ function App() {
     setSurveyRoadmap(null);
   };
 
-  const handleUpdateProfile = (updatedFields) => {
+  const handleUpdateProfile = async (updatedFields) => {
     const updatedUser = {
       ...currentUser,
       ...updatedFields
@@ -143,28 +143,27 @@ function App() {
     localStorage.setItem('session_user', JSON.stringify(updatedUser));
 
     // Update in database list
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const idx = users.findIndex(u => u.email === currentUser.email);
-      if (idx !== -1) {
-        users[idx] = {
-          ...users[idx],
-          ...updatedFields
-        };
-      } else {
-        users.push({
-          email: currentUser.email,
-          password: currentUser.password || 'admin123',
-          isAdmin: !!currentUser.isAdmin,
-          isSenpai: !!currentUser.isSenpai,
-          ...updatedFields
-        });
-      }
-      localStorage.setItem('users', JSON.stringify(users));
-      setSharedArray('users', users);
+    const users = await getSharedArray('users', []);
+    const idx = users.findIndex(u => u.email === currentUser.email);
+    if (idx !== -1) {
+      users[idx] = {
+        ...users[idx],
+        ...updatedFields
+      };
+    } else {
+      users.push({
+        email: currentUser.email,
+        password: currentUser.password || 'admin123',
+        isAdmin: !!currentUser.isAdmin,
+        isSenpai: !!currentUser.isSenpai,
+        ...updatedFields
+      });
+    }
+    await setSharedArray('users', users);
 
     // If name was updated, sync with community threads and replies
     if (updatedFields.name) {
-      const threads = JSON.parse(localStorage.getItem('nihon_threads') || '[]');
+      const threads = await getSharedArray('threads', []);
       const updatedThreads = threads.map(t => {
         let threadChanged = false;
         let newAuthor = t.author;
@@ -192,7 +191,7 @@ function App() {
         return t;
       });
 
-      localStorage.setItem('nihon_threads', JSON.stringify(updatedThreads));
+      await setSharedArray('threads', updatedThreads);
     }
   };
 

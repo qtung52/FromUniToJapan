@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 // Groq API key from https://console.groq.com/keys
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
 
-const SYSTEM_PROMPT = `Bạn là AI hỗ trợ tích hợp trên nền tảng NihonLink - nền tảng hỗ trợ người Việt Nam làm việc tại Nhật Bản.
+const SYSTEM_PROMPT = `Bạn là AI hỗ trợ tích hợp trên nền tảng NihonBot - nền tảng hỗ trợ người Việt Nam làm việc tại Nhật Bản.
 Nhiệm vụ của bạn:
 - Giải đáp các thắc mắc về văn hóa ứng xử công sở Nhật Bản (Ojigi, Nomikai, HouRenSo, trang phục)
 - Tư vấn quy trình Shukatsu xin việc tại Nhật
@@ -70,8 +70,8 @@ export default function ChatBox({ currentUser }) {
   const [isStreaming, setIsStreaming] = useState(false);
 
   const welcomeText = GROQ_API_KEY
-    ? 'Chào bạn! Mình là AI Trợ Lý NihonLink, bạn có thể hỏi mình bất cứ điều gì về văn hóa doanh nghiệp Nhật, phỏng vấn, viết CV hay cuộc sống tại Nhật nhé! 🤖'
-    : 'Chào bạn! Mình là AI Trợ Lý NihonLink. Chưa có Groq API key nên mình đang dùng chế độ trả lời mẫu. Hỏi mình về văn hóa Nhật, phỏng vấn, viết CV nhé! 🌸';
+    ? 'Chào bạn! Mình là AI Trợ Lý NihonBot, bạn có thể hỏi mình bất cứ điều gì về văn hóa doanh nghiệp Nhật, phỏng vấn, viết CV hay cuộc sống tại Nhật nhé! 🤖'
+    : 'Chào bạn! Mình là AI Trợ Lý NihonBot. Chưa có Groq API key nên mình đang dùng chế độ trả lời mẫu. Hỏi mình về văn hóa Nhật, phỏng vấn, viết CV nhé! 🌸';
 
   const [aiMessages, setAiMessages] = useState([
     { id: 1, sender: 'bot', text: welcomeText, time: 'Vừa xong' }
@@ -319,7 +319,7 @@ export default function ChatBox({ currentUser }) {
   };
 
   const getPartnerName = () => {
-    return aiMode === 'groq' ? 'Trợ Lý AI NihonLink' : 'AI Hỗ trợ (Trả lời mẫu)';
+    return aiMode === 'groq' ? 'Trợ Lý AI NihonBot' : 'AI Hỗ trợ (Trả lời mẫu)';
   };
 
   const getPartnerAvatar = () => {
@@ -479,17 +479,17 @@ export default function ChatBox({ currentUser }) {
           {/* Quick FAQ Chips (AI mode only) */}
           {chatMode === 'ai' && (
             <div style={{ position: 'relative', background: 'var(--jp-soft-surface)', borderBottom: '1px solid var(--jp-border)', padding: '0.4rem 0' }}>
-              <button 
+              <button
                 onClick={handleScrollLeft}
-                style={{ position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)', background: 'var(--jp-surface-raised)', border: '1px solid var(--jp-border)', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
+                style={{ position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)', background: 'var(--jp-surface-raised)', border: '1.5px solid #0f2c59', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
               >
                 <ChevronLeft size={16} color="var(--jp-blue)" />
               </button>
-              
+
               <div
                 ref={scrollContainerRef}
                 style={{
-                  padding: '0 1.5rem',
+                  padding: '1 2.5rem', //menu
                   display: 'flex',
                   gap: '0.5rem',
                   overflowX: 'auto',
@@ -513,9 +513,9 @@ export default function ChatBox({ currentUser }) {
                     style={{
                       fontSize: '0.75rem',
                       background: 'var(--jp-card-bg)',
-                      border: '1px solid var(--jp-border)',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '16px',
+                      border: '2.5px solid var(--jp-border)',
+                      padding: '0.65rem 0.65rem',
+                      borderRadius: '50px',
                       cursor: 'pointer',
                       color: 'var(--jp-text)',
                       transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
@@ -525,15 +525,15 @@ export default function ChatBox({ currentUser }) {
                       gap: '0.3rem',
                       boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
                     }}
-                    onMouseEnter={e => { 
-                      e.currentTarget.style.borderColor = 'var(--jp-blue)'; 
-                      e.currentTarget.style.background = 'var(--jp-blue-light)'; 
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'var(--jp-blue)';
+                      e.currentTarget.style.background = 'var(--jp-blue-light)';
                       e.currentTarget.style.transform = 'translateY(-1px)';
                       e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
                     }}
-                    onMouseLeave={e => { 
-                      e.currentTarget.style.borderColor = 'var(--jp-border)'; 
-                      e.currentTarget.style.background = 'var(--jp-card-bg)'; 
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'var(--jp-border)';
+                      e.currentTarget.style.background = 'var(--jp-card-bg)';
                       e.currentTarget.style.transform = 'none';
                       e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
                     }}
@@ -544,9 +544,9 @@ export default function ChatBox({ currentUser }) {
                 ))}
               </div>
 
-              <button 
+              <button
                 onClick={handleScrollRight}
-                style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'var(--jp-surface-raised)', border: '1px solid var(--jp-border)', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
+                style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'var(--jp-surface-raised)', border: '1.5px solid #0f2c59', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
               >
                 <ChevronRight size={16} color="var(--jp-blue)" />
               </button>
@@ -704,7 +704,7 @@ export default function ChatBox({ currentUser }) {
           <form
             onSubmit={handleSendMessage}
             style={{
-              padding: '0.75rem 0.85rem',
+              padding: '.75rem 0.85rem',
               background: 'var(--jp-card-bg)',
               borderTop: '1px solid var(--jp-border)',
               display: 'flex',
