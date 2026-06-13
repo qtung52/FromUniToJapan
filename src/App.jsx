@@ -236,6 +236,8 @@ function App() {
       case 'admin':
         return currentUser.isAdmin ? (
           <AdminPanel
+            currentUser={currentUser}
+            onUpdateProfile={handleUpdateProfile}
             dictionary={dictionary}
             roleplay={roleplay}
             onAddDictionary={handleAddDictionary}

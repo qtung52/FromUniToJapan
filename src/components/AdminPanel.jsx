@@ -3,6 +3,8 @@ import { Plus, BookOpen, Award, CheckCircle, FileText, Trash2, Edit3, X, Upload,
 import { getSharedArray, setSharedArray } from '../lib/sharedStore';
 
 export default function AdminPanel({ 
+  currentUser,
+  onUpdateProfile,
   dictionary, 
   roleplay, 
   onAddDictionary, 
@@ -268,6 +270,15 @@ export default function AdminPanel({
       });
       await setSharedArray('users', updated);
       setUsersList(updated);
+
+      // Nếu đang tự đổi quyền của chính mình, update session ngay lập tức để Navbar đổi màu
+      if (currentUser && currentUser.email === email) {
+        onUpdateProfile({
+          isAdmin: newRole === 'admin',
+          isSenpai: newRole === 'senpai' || newRole === 'admin'
+        });
+      }
+
       setNotification(`Đã cập nhật quyền của ${email} thành ${newRole.toUpperCase()}.`);
       setTimeout(() => setNotification(''), 3000);
     }
