@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Plus, BookOpen, Award, CheckCircle, FileText, Trash2, Edit3, X, Upload, Users, Key, BarChart2, MessageSquare, LayoutTemplate } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, BookOpen, Award, CheckCircle, FileText, Trash2, Edit3, X, Upload, Users, Key, BarChart2, MessageSquare, LayoutTemplate, ChevronDown, ChevronUp, Heart, MessageCircle } from 'lucide-react';
 import { getSharedArray, setSharedArray } from '../lib/sharedStore';
+import CustomDropdown from './CustomDropdown';
 
 export default function AdminPanel({ 
   currentUser,
@@ -19,15 +20,20 @@ export default function AdminPanel({
 
   const [usersList, setUsersList] = useState([]);
   const [threadsList, setThreadsList] = useState([]);
+  const [expandedThreadId, setExpandedThreadId] = useState(null);
+  const [rolesList, setRolesList] = useState(['Học viên', 'Senpai', 'Admin']);
+  const [newRoleInput, setNewRoleInput] = useState('');
 
   useEffect(() => {
     let isMounted = true;
     const fetchAdminData = async () => {
       const users = await getSharedArray('users', []);
       const threads = await getSharedArray('threads', []);
+      const roles = await getSharedArray('custom_roles', ['Học viên', 'Senpai', 'Admin']);
       if (!isMounted) return;
       setUsersList(users);
       setThreadsList(threads);
+      setRolesList(roles);
     };
 
     fetchAdminData();
@@ -256,15 +262,98 @@ export default function AdminPanel({
     }
   };
 
-  const handleUpdateUserRole = async (email, newRole) => {
-    if (window.confirm(`Bạn có chắc muốn thay đổi quyền của ${email} thành ${newRole}?`)) {
+  const handleDeleteThread = async (id, title) => {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa bài viết "${title}"? Tất cả bình luận liên quan cũng sẽ bị xóa.`)) {
+      const currentThreads = await getSharedArray('threads', []);
+      const filtered = currentThreads.filter(t => t.id !== id);
+      await setSharedArray('threads', filtered);
+      setThreadsList(filtered);
+      setNotification(`Đã xóa bài viết "${title}" thành công.`);
+      setTimeout(() => setNotification(''), 3000);
+      if (expandedThreadId === id) {
+        setExpandedThreadId(null);
+      }
+    }
+  };
+
+  const handleDeleteReply = async (threadId, replyId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
+      const currentThreads = await getSharedArray('threads', []);
+      const updated = currentThreads.map(t => {
+        if (t.id === threadId) {
+          return {
+            ...t,
+            answers: (t.answers || []).filter(a => a.id !== replyId)
+          };
+        }
+        return t;
+      });
+      await setSharedArray('threads', updated);
+      setThreadsList(updated);
+      setNotification('Đã xóa bình luận thành công.');
+      setTimeout(() => setNotification(''), 3000);
+    }
+  };
+
+  const handleCreateRole = async (e) => {
+    e.preventDefault();
+    const cleanRoleName = newRoleInput.trim();
+    if (!cleanRoleName) return;
+
+    if (rolesList.map(r => r.toLowerCase()).includes(cleanRoleName.toLowerCase())) {
+      alert("Vai trò này đã tồn tại!");
+      return;
+    }
+
+    const updatedRoles = [...rolesList, cleanRoleName];
+    await setSharedArray('custom_roles', updatedRoles);
+    setRolesList(updatedRoles);
+    setNewRoleInput('');
+    setNotification(`Đã tạo vai trò "${cleanRoleName}" thành công.`);
+    setTimeout(() => setNotification(''), 3000);
+  };
+
+  const handleDeleteRole = async (roleName) => {
+    if (['Học viên', 'Senpai', 'Admin'].includes(roleName)) {
+      alert("Không thể xóa các vai trò mặc định!");
+      return;
+    }
+
+    if (window.confirm(`Bạn có chắc chắn muốn xóa vai trò "${roleName}"? Người dùng đang mang vai trò này sẽ tự động chuyển về vai trò "Học viên".`)) {
+      const updatedRoles = rolesList.filter(r => r !== roleName);
+      await setSharedArray('custom_roles', updatedRoles);
+      setRolesList(updatedRoles);
+
+      const currentUsers = await getSharedArray('users', []);
+      const updatedUsers = currentUsers.map(u => {
+        if (u.customRole === roleName) {
+          return {
+            ...u,
+            customRole: 'Học viên',
+            isAdmin: false,
+            isSenpai: false
+          };
+        }
+        return u;
+      });
+      await setSharedArray('users', updatedUsers);
+      setUsersList(updatedUsers);
+
+      setNotification(`Đã xóa vai trò "${roleName}" thành công.`);
+      setTimeout(() => setNotification(''), 3000);
+    }
+  };
+
+  const handleUpdateUserCustomRole = async (email, newRole) => {
+    if (window.confirm(`Bạn có chắc muốn thay đổi vai trò của ${email} thành "${newRole}"?`)) {
       const currentUsers = await getSharedArray('users', []);
       const updated = currentUsers.map(u => {
         if (u.email === email) {
           return {
             ...u,
-            isAdmin: newRole === 'admin',
-            isSenpai: newRole === 'senpai' || newRole === 'admin'
+            customRole: newRole,
+            isAdmin: newRole === 'Admin',
+            isSenpai: newRole === 'Senpai' || newRole === 'Admin'
           };
         }
         return u;
@@ -272,15 +361,15 @@ export default function AdminPanel({
       await setSharedArray('users', updated);
       setUsersList(updated);
 
-      // Nếu đang tự đổi quyền của chính mình, update session ngay lập tức để Navbar đổi màu
       if (currentUser && currentUser.email === email) {
         onUpdateProfile({
-          isAdmin: newRole === 'admin',
-          isSenpai: newRole === 'senpai' || newRole === 'admin'
+          customRole: newRole,
+          isAdmin: newRole === 'Admin',
+          isSenpai: newRole === 'Senpai' || newRole === 'Admin'
         });
       }
 
-      setNotification(`Đã cập nhật quyền của ${email} thành ${newRole.toUpperCase()}.`);
+      setNotification(`Đã cập nhật vai trò của ${email} thành "${newRole}".`);
       setTimeout(() => setNotification(''), 3000);
     }
   };
@@ -306,6 +395,7 @@ export default function AdminPanel({
     setActiveTab(tab);
     setUsersList(await getSharedArray('users', []));
     setThreadsList(await getSharedArray('threads', []));
+    setRolesList(await getSharedArray('custom_roles', ['Học viên', 'Senpai', 'Admin']));
   };
 
   return (
@@ -331,6 +421,9 @@ export default function AdminPanel({
         </button>
         <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => switchTab('users')}>
           <Users size={14} style={{ display: 'inline', marginRight: '5px' }} /> Quản lý Tài khoản ({usersList.length})
+        </button>
+        <button className={`tab-btn ${activeTab === 'roles' ? 'active' : ''}`} onClick={() => switchTab('roles')}>
+          <Key size={14} style={{ display: 'inline', marginRight: '5px' }} /> Thiết lập Vai trò ({rolesList.length})
         </button>
         <button className={`tab-btn ${activeTab === 'dict' ? 'active' : ''}`} onClick={() => switchTab('dict')}>
           <BookOpen size={14} style={{ display: 'inline', marginRight: '5px' }} /> Sổ tay văn hóa
@@ -371,12 +464,228 @@ export default function AdminPanel({
       {activeTab === 'community' && (
         <div className="admin-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'var(--jp-blue)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <MessageSquare size={20} /> Quản lý các bài đăng cộng đồng
+            <MessageSquare size={20} /> Kiểm duyệt Góc Senpai ({threadsList.length} bài đăng)
           </h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '1rem' }}>Admin có thể trực tiếp xóa các bài đăng và bình luận trên Góc Senpai tại hệ thống trang chủ. Tính năng quản lý tập trung sẽ sớm được ra mắt.</p>
-          <div style={{ textAlign: 'center', padding: '2rem' }}>
-            <a href="#" onClick={(e) => { e.preventDefault(); /* Need a way to jump to community or just let user click Navbar */ alert("Vui lòng truy cập trang Góc Senpai để quản lý trực tiếp với vai trò Admin."); }} className="btn btn-primary" style={{ display: 'inline-block' }}>Đến trang Góc Senpai</a>
-          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '1.5rem' }}>
+            Quản lý tập trung các bài viết thảo luận và bình luận của học viên. Admin có quyền xóa toàn bộ bài viết hoặc xóa từng bình luận đơn lẻ vi phạm quy tắc cộng đồng.
+          </p>
+
+          {threadsList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--jp-text-muted)' }}>
+              Chưa có bài đăng nào trên Góc Senpai.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--jp-border)', textAlign: 'left', background: 'var(--jp-blue-light)' }}>
+                    <th style={{ padding: '0.75rem', width: '40%' }}>Thông tin bài đăng (Nhấp để xem chi tiết)</th>
+                    <th style={{ padding: '0.75rem', width: '20%' }}>Người viết</th>
+                    <th style={{ padding: '0.75rem', width: '15%' }}>Lượt tương tác</th>
+                    <th style={{ padding: '0.75rem', width: '15%' }}>Thời gian đăng</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center', width: '10%' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {threadsList.map((thread) => {
+                    const isExpanded = expandedThreadId === thread.id;
+                    const dateObj = new Date(thread.date);
+                    const formattedDate = isNaN(dateObj) ? thread.date : dateObj.toLocaleString('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    });
+                    
+                    return (
+                      <React.Fragment key={thread.id}>
+                        <tr 
+                          style={{ 
+                            borderBottom: '1px solid var(--jp-border)',
+                            background: isExpanded ? 'rgba(15, 44, 89, 0.02)' : 'transparent',
+                            transition: 'background 0.2s'
+                          }}
+                        >
+                          <td style={{ padding: '0.75rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                              <span style={{ 
+                                alignSelf: 'flex-start',
+                                fontSize: '0.7rem', 
+                                background: 'var(--jp-blue-light)', 
+                                color: 'var(--jp-blue)', 
+                                padding: '0.15rem 0.45rem', 
+                                borderRadius: '10px',
+                                fontWeight: 600
+                              }}>
+                                {thread.tagName || thread.tag}
+                              </span>
+                              <strong 
+                                style={{ 
+                                  color: 'var(--jp-blue)', 
+                                  cursor: 'pointer',
+                                  fontSize: '0.95rem'
+                                }}
+                                onClick={() => setExpandedThreadId(isExpanded ? null : thread.id)}
+                              >
+                                {thread.title}
+                              </strong>
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 600 }}>{thread.author}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--jp-text-muted)' }}>{thread.authorEmail}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <div style={{ display: 'flex', gap: '1rem', color: 'var(--jp-text-muted)' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                <Heart size={14} style={{ color: 'var(--jp-red)' }} /> {thread.likes?.length || 0}
+                              </span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                <MessageCircle size={14} style={{ color: 'var(--jp-blue)' }} /> {thread.answers?.length || 0}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.75rem', color: 'var(--jp-text-muted)', fontSize: '0.85rem' }}>
+                            {formattedDate}
+                          </td>
+                          <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                              <button
+                                type="button"
+                                className="btn"
+                                onClick={() => setExpandedThreadId(isExpanded ? null : thread.id)}
+                                style={{
+                                  padding: '0.3rem 0.6rem',
+                                  fontSize: '0.75rem',
+                                  background: 'var(--jp-surface)',
+                                  color: 'var(--jp-text)',
+                                  border: '1px solid var(--jp-border)'
+                                }}
+                                title="Xem nội dung và bình luận"
+                              >
+                                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Chi tiết
+                              </button>
+                              <button
+                                type="button"
+                                className="btn"
+                                onClick={() => handleDeleteThread(thread.id, thread.title)}
+                                style={{
+                                  padding: '0.3rem 0.6rem',
+                                  fontSize: '0.75rem',
+                                  background: 'rgba(232, 54, 93, 0.08)',
+                                  color: 'var(--jp-red)',
+                                  border: '1px solid rgba(232, 54, 93, 0.2)'
+                                }}
+                                title="Xóa bài viết"
+                              >
+                                <Trash2 size={14} /> Xóa
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        
+                        {isExpanded && (
+                          <tr style={{ background: 'rgba(15, 44, 89, 0.01)' }}>
+                            <td colSpan="5" style={{ padding: '1.25rem 2rem', borderBottom: '1px solid var(--jp-border)' }}>
+                              {/* Main post content info */}
+                              <div style={{ 
+                                padding: '1rem', 
+                                background: 'var(--jp-card-bg)', 
+                                border: '1px solid var(--jp-border)', 
+                                borderRadius: 'var(--jp-radius)',
+                                marginBottom: '1.25rem'
+                              }}>
+                                <strong style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--jp-blue)' }}>Nội dung bài viết:</strong>
+                                <p style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap', color: 'var(--jp-text)' }}>{thread.content}</p>
+                              </div>
+
+                              {/* Answers (Replies) list */}
+                              <div>
+                                <h4 style={{ color: 'var(--jp-blue)', fontSize: '0.9rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <MessageCircle size={16} /> Danh sách bình luận ({thread.answers?.length || 0})
+                                </h4>
+                                {(!thread.answers || thread.answers.length === 0) ? (
+                                  <p style={{ color: 'var(--jp-text-muted)', fontSize: '0.85rem', fontStyle: 'italic', paddingLeft: '1rem' }}>
+                                    Chưa có bình luận nào cho bài viết này.
+                                  </p>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingLeft: '1rem' }}>
+                                    {thread.answers.map((answer) => {
+                                      const ansDate = new Date(answer.date);
+                                      const formattedAnsDate = isNaN(ansDate) ? answer.date : ansDate.toLocaleString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric'
+                                      });
+                                      
+                                      return (
+                                        <div 
+                                          key={answer.id} 
+                                          style={{ 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            alignItems: 'flex-start',
+                                            padding: '0.75rem 1rem', 
+                                            background: 'var(--jp-card-bg)', 
+                                            border: '1px solid var(--jp-border)', 
+                                            borderRadius: '8px',
+                                            gap: '1rem'
+                                          }}
+                                        >
+                                          <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                                              <strong style={{ fontSize: '0.85rem' }}>{answer.author}</strong>
+                                              <span style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)' }}>({answer.authorEmail || 'Kouhai'})</span>
+                                              <span style={{ 
+                                                fontSize: '0.7rem', 
+                                                background: 'var(--jp-surface)', 
+                                                padding: '0.1rem 0.4rem', 
+                                                borderRadius: '6px',
+                                                color: 'var(--jp-text-muted)'
+                                              }}>
+                                                {answer.role || 'Học viên'}
+                                              </span>
+                                              <span style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)', marginLeft: 'auto' }}>{formattedAnsDate}</span>
+                                            </div>
+                                            <p style={{ fontSize: '0.88rem', margin: 0, whiteSpace: 'pre-wrap' }}>{answer.content}</p>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            className="btn"
+                                            onClick={() => handleDeleteReply(thread.id, answer.id)}
+                                            style={{
+                                              padding: '0.25rem 0.5rem',
+                                              fontSize: '0.7rem',
+                                              background: 'rgba(232, 54, 93, 0.05)',
+                                              color: 'var(--jp-red)',
+                                              border: '1px solid rgba(232, 54, 93, 0.15)',
+                                              alignSelf: 'center'
+                                            }}
+                                            title="Xóa bình luận này"
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -391,21 +700,21 @@ export default function AdminPanel({
               Chưa có thành viên nào đăng ký tài khoản.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <div style={{ overflowX: 'auto', minHeight: '260px' }}>
+              <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.9rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid var(--jp-border)', textAlign: 'left', background: 'var(--jp-blue-light)' }}>
-                    <th style={{ padding: '0.75rem' }}>Thông tin thành viên</th>
-                    <th style={{ padding: '0.75rem' }}>Mục tiêu nghề nghiệp</th>
-                    <th style={{ padding: '0.75rem' }}>Câu hỏi bảo mật</th>
-                    <th style={{ padding: '0.75rem' }}>Vai trò (Role)</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Thao tác</th>
+                  <tr style={{ textAlign: 'left', background: 'var(--jp-blue-light)' }}>
+                    <th style={{ padding: '0.75rem', borderBottom: '2px solid var(--jp-border)' }}>Thông tin thành viên</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '2px solid var(--jp-border)' }}>Mục tiêu nghề nghiệp</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '2px solid var(--jp-border)' }}>Câu hỏi bảo mật</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '2px solid var(--jp-border)' }}>Vai trò (Role)</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center', borderBottom: '2px solid var(--jp-border)' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usersList.map((user, idx) => (
-                    <tr key={user.email || idx} style={{ borderBottom: '1px solid var(--jp-border)' }}>
-                      <td style={{ padding: '0.75rem' }}>
+                    <tr key={user.email || idx}>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid var(--jp-border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span 
                             style={{ 
@@ -442,12 +751,12 @@ export default function AdminPanel({
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem' }}>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid var(--jp-border)' }}>
                         <span style={{ fontSize: '0.85rem', background: 'var(--jp-blue-light)', color: 'var(--jp-blue)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
                           {user.careerGoal || 'Chưa thiết lập'}
                         </span>
                       </td>
-                      <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid var(--jp-border)', fontSize: '0.85rem' }}>
                         {user.securityQuestion ? (
                           <div>
                             <span style={{ display: 'block', color: 'var(--jp-text-muted)' }}>Q: {user.securityQuestion}</span>
@@ -457,19 +766,24 @@ export default function AdminPanel({
                           <span style={{ color: 'var(--jp-red)' }}>⚠️ Chưa thiết lập câu hỏi bảo mật</span>
                         )}
                       </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <select 
-                          className="form-input" 
-                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', height: 'auto' }}
-                          value={user.isAdmin ? 'admin' : user.isSenpai ? 'senpai' : 'student'}
-                          onChange={(e) => handleUpdateUserRole(user.email, e.target.value)}
-                        >
-                          <option value="student">Học viên</option>
-                          <option value="senpai">Senpai</option>
-                          <option value="admin">Admin</option>
-                        </select>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid var(--jp-border)' }}>
+                        <CustomDropdown
+                          options={rolesList}
+                          value={user.customRole || (user.isAdmin ? 'Admin' : user.isSenpai ? 'Senpai' : 'Học viên')}
+                          onChange={(val) => handleUpdateUserCustomRole(user.email, val)}
+                          buttonStyle={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.8rem',
+                            height: 'auto',
+                            minHeight: 'unset',
+                            borderRadius: '6px',
+                            fontWeight: 'normal',
+                            border: '1px solid var(--jp-border)'
+                          }}
+                          style={{ width: '130px' }}
+                        />
                       </td>
-                      <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid var(--jp-border)', textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                           <button
                             onClick={() => handleResetUserPassword(user.email)}
@@ -498,6 +812,93 @@ export default function AdminPanel({
         </div>
       )}
       
+      {activeTab === 'roles' && (
+        <div className="admin-card" style={{ padding: '2rem' }}>
+          <h3 style={{ color: 'var(--jp-blue)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Key size={20} /> Thiết lập & Tạo Vai trò thành viên
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '1.5rem' }}>
+            Quản lý các vai trò tùy chỉnh trên hệ thống. Bạn có thể thêm các vai trò mới (như Cố vấn, Trưởng nhóm học tập...) để gán cho các tài khoản thành viên.
+          </p>
+
+          <div className="admin-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '2rem' }}>
+            {/* Left Column: Create Role Form */}
+            <div style={{ background: 'var(--jp-soft-surface)', padding: '1.5rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)' }}>
+              <h4 style={{ color: 'var(--jp-blue)', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 600 }}>Tạo vai trò mới</h4>
+              <form onSubmit={handleCreateRole}>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label className="form-label" style={{ fontSize: '0.85rem', marginBottom: '0.4rem', display: 'block' }}>Tên vai trò mới</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Ví dụ: Cố vấn chuyên môn, Leader..." 
+                    value={newRoleInput}
+                    onChange={(e) => setNewRoleInput(e.target.value)}
+                    required 
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                  <Plus size={16} /> Thêm vai trò
+                </button>
+              </form>
+            </div>
+
+            {/* Right Column: List of Roles */}
+            <div style={{ background: 'var(--jp-card-bg)', padding: '1.5rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)' }}>
+              <h4 style={{ color: 'var(--jp-blue)', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 600 }}>Danh sách vai trò hiện tại ({rolesList.length})</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {rolesList.map((role) => {
+                  const isDefault = ['Học viên', 'Senpai', 'Admin'].includes(role);
+                  return (
+                    <div 
+                      key={role} 
+                      style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        padding: '0.75rem 1rem', 
+                        background: isDefault ? 'var(--jp-soft-surface)' : 'var(--jp-surface-raised)', 
+                        border: '1px solid var(--jp-border)', 
+                        borderRadius: '8px' 
+                      }}
+                    >
+                      <div>
+                        <strong style={{ fontSize: '0.9rem', color: 'var(--jp-text)' }}>{role}</strong>
+                        {isDefault && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--jp-text-muted)', marginLeft: '0.5rem', background: 'var(--jp-border)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
+                            Mặc định
+                          </span>
+                        )}
+                      </div>
+                      {!isDefault && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRole(role)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--jp-red)',
+                            cursor: 'pointer',
+                            padding: '0.25rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title={`Xóa vai trò "${role}"`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(activeTab === 'dict' || activeTab === 'role') && (
         <div className="admin-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }}>
           {/* Left Side: Creation/Update Forms */}
@@ -521,12 +922,16 @@ export default function AdminPanel({
                 
                 <div className="form-group">
                   <label className="form-label">Danh mục</label>
-                  <select className="form-input" value={dictCategory} onChange={(e) => setDictCategory(e.target.value)}>
-                    <option value="ojigi">Cúi chào (Ojigi)</option>
-                    <option value="meishi">Danh thiếp & Giao tiếp (Meishi)</option>
-                    <option value="seating">Ghế ngồi (Kamiza)</option>
-                    <option value="dresscode">Trang phục</option>
-                  </select>
+                  <CustomDropdown
+                    options={[
+                      { value: 'ojigi', label: 'Cúi chào (Ojigi)' },
+                      { value: 'meishi', label: 'Danh thiếp & Giao tiếp (Meishi)' },
+                      { value: 'seating', label: 'Ghế ngồi (Kamiza)' },
+                      { value: 'dresscode', label: 'Trang phục' }
+                    ]}
+                    value={dictCategory}
+                    onChange={setDictCategory}
+                  />
                 </div>
 
                 <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
@@ -642,11 +1047,15 @@ export default function AdminPanel({
 
                   <div className="form-group">
                     <label className="form-label">Đáp án đúng nhất</label>
-                    <select className="form-input" value={correctOpt} onChange={(e) => setCorrectOpt(e.target.value)}>
-                      <option value="A">Đáp án A</option>
-                      <option value="B">Đáp án B</option>
-                      <option value="C">Đáp án C</option>
-                    </select>
+                    <CustomDropdown
+                      options={[
+                        { value: 'A', label: 'Đáp án A' },
+                        { value: 'B', label: 'Đáp án B' },
+                        { value: 'C', label: 'Đáp án C' }
+                      ]}
+                      value={correctOpt}
+                      onChange={setCorrectOpt}
+                    />
                   </div>
                 </div>
 

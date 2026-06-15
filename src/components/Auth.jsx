@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Lock, Mail, User, ArrowRight, HelpCircle, CheckCircle, Eye, EyeOff, Sun, Moon, Sparkles } from 'lucide-react';
 import { getSharedArray, setSharedArray } from '../lib/sharedStore';
+import CustomDropdown from './CustomDropdown';
 import styles from './Auth.module.css';
 
 const SECURITY_QUESTIONS = [
@@ -448,15 +449,11 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
 
                     <div className={styles.formGroup}>
                       <label className={styles.selectLabel}>Chọn câu hỏi bảo mật</label>
-                      <select
-                        className={styles.selectInput}
+                      <CustomDropdown
+                        options={SECURITY_QUESTIONS}
                         value={securityQuestion}
-                        onChange={(e) => setSecurityQuestion(e.target.value)}
-                      >
-                        {SECURITY_QUESTIONS.map((q, idx) => (
-                          <option key={idx} value={q}>{q}</option>
-                        ))}
-                      </select>
+                        onChange={setSecurityQuestion}
+                      />
                     </div>
 
                     <div className={styles.formGroup}>

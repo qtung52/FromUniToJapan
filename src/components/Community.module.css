@@ -1084,3 +1084,34 @@
   flex-direction: column;
   gap: 1.5rem;
 }
+
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--jp-surface-raised);
+  border: 1px solid var(--jp-border);
+  color: var(--jp-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.refreshBtn:hover {
+  border-color: var(--jp-blue);
+  color: var(--jp-blue);
+  background: var(--jp-blue-light);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}

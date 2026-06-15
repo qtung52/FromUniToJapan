@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Download, ChevronLeft, ChevronRight, Check, Eye } from 'lucide-react';
+import CustomDropdown from './CustomDropdown';
 import styles from './CVBuilder.module.css';
 
 /* eslint-disable no-irregular-whitespace */
@@ -120,10 +121,14 @@ export default function CVBuilder() {
 
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Giới tính</label>
-                  <select className={styles.formSelect} name="gender" value={formData.gender} onChange={handleChange}>
-                    <option value="Nam">Nam (男)</option>
-                    <option value="Nữ">Nữ (女)</option>
-                  </select>
+                  <CustomDropdown
+                    options={[
+                      { value: 'Nam', label: 'Nam (男)' },
+                      { value: 'Nữ', label: 'Nữ (女)' }
+                    ]}
+                    value={formData.gender}
+                    onChange={(val) => handleChange({ target: { name: 'gender', value: val } })}
+                  />
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Điện thoại</label>

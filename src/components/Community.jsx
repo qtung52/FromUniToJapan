@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, MessageSquare, Tag, MessageCircle, Trash2, X, Briefcase, ChevronDown, ChevronUp, Heart, Search, MoreVertical, Edit3, Image as ImageIcon } from 'lucide-react';
+import { Send, MessageSquare, Tag, MessageCircle, Trash2, X, Briefcase, ChevronDown, ChevronUp, Heart, Search, MoreVertical, Edit3, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { getSharedArray, isSupabaseEnabled, setSharedArray } from '../lib/sharedStore';
+import CustomDropdown from './CustomDropdown';
 import styles from './Community.module.css';
 
 export const FORUM_TOPICS = [
@@ -178,34 +179,34 @@ export default function Community({ currentUser, onViewProfile }) {
 
   const [syncStatus, setSyncStatus] = useState('loading'); // loading | online | offline
   const [users, setUsers] = useState([]);
+  const isMountedRef = useRef(true);
+
+  const loadThreads = async ({ silent = false } = {}) => {
+    if (!silent) setSyncStatus('loading');
+    try {
+      const sharedThreads = await getSharedArray('threads', INITIAL_THREADS);
+      const sharedUsers = await getSharedArray('users', []);
+      if (!isMountedRef.current) return;
+      setThreads(sharedThreads);
+      setUsers(sharedUsers);
+      setSyncStatus(isSupabaseEnabled ? 'online' : 'local');
+    } catch {
+      if (!isMountedRef.current) return;
+      const localThreads = localStorage.getItem('nihon_threads');
+      const fallbackThreads = localThreads ? JSON.parse(localThreads) : INITIAL_THREADS;
+      setThreads(fallbackThreads);
+      localStorage.setItem('nihon_threads', JSON.stringify(fallbackThreads));
+      setSyncStatus('offline');
+    }
+  };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadThreads = async ({ silent = false } = {}) => {
-      if (!silent) setSyncStatus('loading');
-      try {
-        const sharedThreads = await getSharedArray('threads', INITIAL_THREADS);
-        const sharedUsers = await getSharedArray('users', []);
-        if (!isMounted) return;
-        setThreads(sharedThreads);
-        setUsers(sharedUsers);
-        setSyncStatus(isSupabaseEnabled ? 'online' : 'local');
-      } catch {
-        if (!isMounted) return;
-        const localThreads = localStorage.getItem('nihon_threads');
-        const fallbackThreads = localThreads ? JSON.parse(localThreads) : INITIAL_THREADS;
-        setThreads(fallbackThreads);
-        localStorage.setItem('nihon_threads', JSON.stringify(fallbackThreads));
-        setSyncStatus('offline');
-      }
-    };
-
+    isMountedRef.current = true;
     loadThreads();
-    const interval = setInterval(() => loadThreads({ silent: true }), 5000);
+    const interval = setInterval(() => loadThreads({ silent: true }), 300000); // 5 minutes
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
       clearInterval(interval);
     };
   }, []);
@@ -410,6 +411,7 @@ export default function Community({ currentUser, onViewProfile }) {
   const getUserRole = (email, fallbackRole) => {
     const userObj = users.find(u => u.email === email);
     if (userObj) {
+      if (userObj.customRole) return userObj.customRole;
       if (userObj.isAdmin) return 'Quản trị viên';
       if (userObj.isSenpai) return 'Senpai';
       return 'Học viên';
@@ -547,6 +549,15 @@ export default function Community({ currentUser, onViewProfile }) {
                 )}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => loadThreads()}
+              className={styles.refreshBtn}
+              title="Làm mới bài viết"
+            >
+              <RefreshCw size={16} className={syncStatus === 'loading' ? styles.spin : ''} />
+            </button>
           </div>
 
           <div className={styles.threadsList}>
@@ -564,15 +575,11 @@ export default function Community({ currentUser, onViewProfile }) {
                     </h3>
                     <div className={styles.formGroup}>
                       <label className={styles.formLabel}>Chủ đề</label>
-                      <select 
-                        className={styles.formSelect} 
-                        value={editingThreadTag} 
-                        onChange={(e) => setEditingThreadTag(e.target.value)}
-                      >
-                        {FORUM_TOPICS.map(topic => (
-                          <option key={topic.id} value={topic.id}>{topic.name}</option>
-                        ))}
-                      </select>
+                      <CustomDropdown
+                        options={FORUM_TOPICS.map(topic => ({ value: topic.id, label: topic.name }))}
+                        value={editingThreadTag}
+                        onChange={setEditingThreadTag}
+                      />
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.formLabel}>Tiêu đề câu hỏi</label>
@@ -889,15 +896,11 @@ export default function Community({ currentUser, onViewProfile }) {
             <form onSubmit={handlePost} className={styles.modalBody}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Chủ đề thảo luận</label>
-                <select
-                  className={styles.formSelect}
+                <CustomDropdown
+                  options={FORUM_TOPICS.map(topic => ({ value: topic.id, label: topic.name }))}
                   value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                >
-                  {FORUM_TOPICS.map(topic => (
-                    <option key={topic.id} value={topic.id}>{topic.name}</option>
-                  ))}
-                </select>
+                  onChange={setNewTag}
+                />
               </div>
 
               <div className={styles.formGroup}>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, X, Minimize2, Maximize2, Bot, Cpu, WifiOff, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { MessageSquare, Send, X, Minimize2, Maximize2, Bot, Cpu, WifiOff, ChevronLeft, ChevronRight, RefreshCw, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 // Groq API key from https://console.groq.com/keys
@@ -36,38 +36,95 @@ const AI_RESPONSES_FALLBACK = [
   }
 ];
 
-const DEFAULT_SENPAI_MESSAGES = {
-  minh: [
-    { id: 1, sender: 'senpai', text: 'Chào em, anh là Minh, hiện là Bridge SE tại Tokyo. Em có câu hỏi gì về ngành IT hoặc cuộc sống bên Nhật không?', time: '10:00' }
-  ],
-  trang: [
-    { id: 1, sender: 'senpai', text: 'Chào bạn nhé! Mình là Trang, làm về Logistics & Xuất nhập khẩu tại Osaka. Rất vui được hỗ trợ bạn về kinh nghiệm Shukatsu!', time: '10:05' }
-  ]
-};
-
-const MOCK_SENPAI_REPLIES = {
-  minh: [
-    "Công việc Bridge SE đòi hỏi cả kỹ năng lập trình lẫn tiếng Nhật tầm N2 trở lên em nhé. Em nên tập trung học hội thoại chuyên ngành.",
-    "Bên Nhật tuyển IT đánh giá rất cao thái độ làm việc nhóm và khả năng tự nghiên cứu. Portfolio nên có dự án thực tế nhé.",
-    "Cuộc sống ở Tokyo năng động nhưng chi phí thuê nhà hơi cao. Em có thể ở Saitama hoặc Chiba rồi đi tàu điện đi làm.",
-    "Nếu muốn ứng tuyển, hãy viết phần kinh nghiệm dự án thật rõ ràng trong CV: vai trò của em là gì, sử dụng công nghệ nào."
-  ],
-  trang: [
-    "Ngành Logistics ở Nhật giao dịch quốc tế nhiều, ngoài tiếng Nhật biết thêm tiếng Anh là lợi thế cực kỳ lớn!",
-    "Khi chuẩn bị hồ sơ Shukatsu cho công ty thương mại, cần thể hiện khả năng giao tiếp khéo léo và chịu được áp lực cao.",
-    "Tìm hiểu thêm về chứng chỉ nghiệp vụ hải quan hoặc chứng chỉ ngoại thương để làm đẹp hồ sơ ứng tuyển nhé.",
-    "Văn hóa ngành này rất chú trọng giờ giấc và sự liên lạc nhanh chóng. Hãy làm quen với tác phong nhanh nhẹn từ bây giờ."
-  ]
-};
+const PROMPT_TEMPLATES = [
+  {
+    id: 'cv_pr',
+    category: 'cv',
+    emoji: '📝',
+    title: 'Viết Jiyuu PR',
+    desc: 'Tạo phần PR bản thân ấn tượng trong CV Rirekisho.',
+    prompt: 'Hãy hướng dẫn tôi viết phần Jiyuu PR (tự giới thiệu bản thân) trong CV Rirekisho chuẩn Nhật. Tôi là kỹ sư cầu nối, có 2 năm kinh nghiệm và muốn làm nổi bật kỹ năng giao tiếp.'
+  },
+  {
+    id: 'cv_shibou',
+    category: 'cv',
+    emoji: '💼',
+    title: 'Lý do ứng tuyển',
+    desc: 'Cách viết Shibou Douki thuyết phục sếp Nhật.',
+    prompt: 'Viết mẫu câu Shibou Douki (Lý do ứng tuyển) bằng tiếng Nhật cho vị trí lập trình viên Frontend tại một công ty công nghệ ở Tokyo.'
+  },
+  {
+    id: 'interview_weakness',
+    category: 'cv',
+    emoji: '🤝',
+    title: 'Hỏi về Điểm yếu',
+    desc: 'Cách biến điểm yếu thành thế mạnh khi phỏng vấn.',
+    prompt: 'Khi nhà tuyển dụng Nhật hỏi: "Điểm yếu của bạn là gì?", tôi nên trả lời thế nào để thể hiện sự cầu tiến và không bị mất điểm?'
+  },
+  {
+    id: 'email_sick',
+    category: 'communication',
+    emoji: '✉️',
+    title: 'Email xin nghỉ ốm',
+    desc: 'Mẫu email lịch sự gửi cho sếp khi bị ốm.',
+    prompt: 'Cho tôi xin mẫu email tiếng Nhật chuẩn Kính ngữ (Keigo) để báo cáo sếp nghỉ làm hôm nay do bị sốt đột xuất.'
+  },
+  {
+    id: 'hourenso_error',
+    category: 'communication',
+    emoji: '⚠️',
+    title: 'Báo cáo sự cố',
+    desc: 'Nguyên tắc HouRenSo khi làm sai hoặc gặp lỗi.',
+    prompt: 'Tôi vừa vô tình làm mất file cấu hình trên server của dự án. Hãy hướng dẫn tôi viết tin nhắn báo cáo sếp ngay lập tức theo chuẩn Hou-Ren-So.'
+  },
+  {
+    id: 'nomikai_manner',
+    category: 'communication',
+    emoji: '🍻',
+    title: 'Quy tắc tiệc rượu',
+    desc: 'Lưu ý khi đi Nomikai với sếp và đối tác.',
+    prompt: 'Hãy tóm tắt các quy tắc bất thành văn quan trọng nhất khi tham gia tiệc rượu Nomikai với sếp người Nhật (ví dụ chỗ ngồi, cách rót bia, cụng ly).'
+  },
+  {
+    id: 'life_address',
+    category: 'life',
+    emoji: '🏢',
+    title: 'Đăng ký địa chỉ',
+    desc: 'Thủ tục đăng ký cư trú tại quận (Shiyakusho).',
+    prompt: 'Tôi mới sang Nhật theo diện kỹ sư. Cần chuẩn bị những giấy tờ gì và làm thế nào để đăng ký địa chỉ thường trú tại ủy ban quận (City Hall)?'
+  },
+  {
+    id: 'life_garbage',
+    category: 'life',
+    emoji: '🗑️',
+    title: 'Phân loại rác',
+    desc: 'Quy tắc đổ rác chuẩn không lo bị hàng xóm nhắc.',
+    prompt: 'Giải thích cho tôi cách phân loại rác (cháy được, không cháy được, rác tài nguyên) và quy định vứt rác ở Nhật Bản.'
+  },
+  {
+    id: 'life_rent',
+    category: 'life',
+    emoji: '🔑',
+    title: 'Thuê nhà ở Nhật',
+    desc: 'Các loại phí đầu vào cần biết khi thuê nhà.',
+    prompt: 'Phí đầu vào khi thuê nhà ở Nhật gồm những gì (Shikikin, Reikin, phí trung gian)? Làm sao để tiết kiệm chi phí này?'
+  }
+];
 
 export default function ChatBox({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [chatMode, setChatMode] = useState('ai');
   const [inputValue, setInputValue] = useState('');
   const [aiMode, setAiMode] = useState(GROQ_API_KEY ? 'groq' : 'offline');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [activeTemplateTab, setActiveTemplateTab] = useState('all');
+
+  const getFilteredTemplates = () => {
+    if (activeTemplateTab === 'all') return PROMPT_TEMPLATES;
+    return PROMPT_TEMPLATES.filter(t => t.category === activeTemplateTab);
+  };
 
   const welcomeText = GROQ_API_KEY
     ? 'Chào bạn! Mình là AI Trợ Lý NihonBot, bạn có thể hỏi mình bất cứ điều gì về văn hóa doanh nghiệp Nhật, phỏng vấn, viết CV hay cuộc sống tại Nhật nhé! 🤖'
@@ -76,8 +133,6 @@ export default function ChatBox({ currentUser }) {
   const [aiMessages, setAiMessages] = useState([
     { id: 1, sender: 'bot', text: welcomeText, time: 'Vừa xong' }
   ]);
-  const [senpaiMinhMessages, setSenpaiMinhMessages] = useState(DEFAULT_SENPAI_MESSAGES.minh);
-  const [senpaiTrangMessages, setSenpaiTrangMessages] = useState(DEFAULT_SENPAI_MESSAGES.trang);
 
   const [isTyping, setIsTyping] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -85,19 +140,6 @@ export default function ChatBox({ currentUser }) {
 
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
-  const scrollContainerRef = useRef(null);
-
-  const handleScrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -150, behavior: 'smooth' });
-    }
-  };
-
-  const handleScrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 150, behavior: 'smooth' });
-    }
-  };
 
   const handleResetChat = () => {
     setAiMessages([
@@ -108,7 +150,7 @@ export default function ChatBox({ currentUser }) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [aiMessages, senpaiMinhMessages, senpaiTrangMessages, isTyping, chatMode, isOpen, isMinimized, streamingText]);
+  }, [aiMessages, isTyping, isOpen, isMinimized, streamingText]);
 
   // --- Groq API streaming (for Vercel deploy) ---
   const callGroqStreaming = async (apiHistory, onChunk, onDone, onError) => {
@@ -171,11 +213,7 @@ export default function ChatBox({ currentUser }) {
   };
 
   const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsOpen(false);
-      setIsClosing(false);
-    }, 300);
+    setIsOpen(false);
   };
 
   const handleSendMessage = async (e) => {
@@ -188,108 +226,78 @@ export default function ChatBox({ currentUser }) {
 
     setInputValue('');
 
-    if (chatMode === 'ai') {
-      const newMessages = [...aiMessages, userMsg];
-      setAiMessages(newMessages);
+    const newMessages = [...aiMessages, userMsg];
+    setAiMessages(newMessages);
 
-      const callFn = aiMode === 'groq' ? callGroqStreaming : null;
+    const callFn = aiMode === 'groq' ? callGroqStreaming : null;
 
-      if (callFn) {
-        setIsStreaming(true);
-        setStreamingText('');
-        const streamId = Date.now() + 1;
+    if (callFn) {
+      setIsStreaming(true);
+      setStreamingText('');
+      const streamId = Date.now() + 1;
 
-        // Xây dựng lịch sử trò chuyện để gửi cho AI hiểu context
-        const apiHistory = newMessages.map(m => ({
-          role: m.sender === 'bot' ? 'assistant' : 'user',
-          content: m.text
-        }));
+      // Xây dựng lịch sử trò chuyện để gửi cho AI hiểu context
+      const apiHistory = newMessages.map(m => ({
+        role: m.sender === 'bot' ? 'assistant' : 'user',
+        content: m.text
+      }));
 
-        callFn(
-          apiHistory,
-          (partialText) => setStreamingText(partialText),
-          (finalText) => {
-            setAiMessages(prev => [...prev, {
-              id: streamId,
-              sender: 'bot',
-              text: finalText || 'Xin lỗi, tôi không tạo được phản hồi. Thử lại nhé!',
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }]);
-            setStreamingText('');
-            setIsStreaming(false);
-          },
-          (error) => {
-            console.error('AI error details:', error);
-            let errorMsg = '⚠️ Lỗi không xác định.';
-            if (aiMode === 'groq') {
-              if (error.message.includes('429')) {
-                errorMsg = '⚠️ Lỗi 429: API Key của bạn đã bị giới hạn.';
-              } else if (error.message.includes('401')) {
-                errorMsg = '⚠️ Lỗi 401: Groq API Key không hợp lệ. Vui lòng kiểm tra lại.';
-              } else {
-                errorMsg = `⚠️ Lỗi Groq API: ${error.message}`;
-              }
-            } else {
-              errorMsg = '⚠️ Lỗi kết nối Ollama.';
-            }
-
-            setAiMessages(prev => [...prev, {
-              id: Date.now() + 2,
-              sender: 'bot',
-              text: errorMsg,
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }]);
-            setStreamingText('');
-            setIsStreaming(false);
-            setAiMode('offline');
-          }
-        );
-      } else {
-        // Fallback mock responses
-        setIsTyping(true);
-        setTimeout(() => {
-          const query = userText.toLowerCase();
-          let matchedResponse = AI_RESPONSES_FALLBACK.find(
-            item => item.keywords.some(kw => query.includes(kw))
-          )?.response;
-          if (!matchedResponse) {
-            matchedResponse = `[Chế độ giả lập] Cảm ơn câu hỏi về "${userText}". Hiện AI chưa được kết nối. Hãy thử hỏi về: CV, phỏng vấn, Nomikai, Ojigi, HouRenSo! 🌸`;
-          }
+      callFn(
+        apiHistory,
+        (partialText) => setStreamingText(partialText),
+        (finalText) => {
           setAiMessages(prev => [...prev, {
-            id: Date.now() + 1, sender: 'bot', text: matchedResponse,
+            id: streamId,
+            sender: 'bot',
+            text: finalText || 'Xin lỗi, tôi không tạo được phản hồi. Thử lại nhé!',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }]);
-          setIsTyping(false);
-        }, 1000);
-      }
+          setStreamingText('');
+          setIsStreaming(false);
+        },
+        (error) => {
+          console.error('AI error details:', error);
+          let errorMsg = '⚠️ Lỗi không xác định.';
+          if (aiMode === 'groq') {
+            if (error.message.includes('429')) {
+              errorMsg = '⚠️ Lỗi 429: API Key của bạn đã bị giới hạn.';
+            } else if (error.message.includes('401')) {
+              errorMsg = '⚠️ Lỗi 401: Groq API Key không hợp lệ. Vui lòng kiểm tra lại.';
+            } else {
+              errorMsg = `⚠️ Lỗi Groq API: ${error.message}`;
+            }
+          } else {
+            errorMsg = '⚠️ Lỗi kết nối Ollama.';
+          }
 
-    } else if (chatMode === 'minh') {
-      setSenpaiMinhMessages(prev => [...prev, userMsg]);
+          setAiMessages(prev => [...prev, {
+            id: Date.now() + 2,
+            sender: 'bot',
+            text: errorMsg,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]);
+          setStreamingText('');
+          setIsStreaming(false);
+          setAiMode('offline');
+        }
+      );
+    } else {
+      // Fallback mock responses
       setIsTyping(true);
       setTimeout(() => {
-        const replies = MOCK_SENPAI_REPLIES.minh;
-        setSenpaiMinhMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          sender: 'senpai',
-          text: replies[Math.floor(Math.random() * replies.length)],
+        const query = userText.toLowerCase();
+        let matchedResponse = AI_RESPONSES_FALLBACK.find(
+          item => item.keywords.some(kw => query.includes(kw))
+        )?.response;
+        if (!matchedResponse) {
+          matchedResponse = `[Chế độ giả lập] Cảm ơn câu hỏi về "${userText}". Hiện AI chưa được kết nối. Hãy thử hỏi về: CV, phỏng vấn, Nomikai, Ojigi, HouRenSo! 🌸`;
+        }
+        setAiMessages(prev => [...prev, {
+          id: Date.now() + 1, sender: 'bot', text: matchedResponse,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }]);
         setIsTyping(false);
-      }, 1500);
-
-    } else if (chatMode === 'trang') {
-      setSenpaiTrangMessages(prev => [...prev, userMsg]);
-      setIsTyping(true);
-      setTimeout(() => {
-        const replies = MOCK_SENPAI_REPLIES.trang;
-        setSenpaiTrangMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          sender: 'senpai',
-          text: replies[Math.floor(Math.random() * replies.length)],
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]);
-        setIsTyping(false);
-      }, 1500);
+      }, 1000);
     }
   };
 
@@ -310,12 +318,7 @@ export default function ChatBox({ currentUser }) {
   };
 
   const getMessages = () => {
-    switch (chatMode) {
-      case 'ai': return aiMessages;
-      case 'minh': return senpaiMinhMessages;
-      case 'trang': return senpaiTrangMessages;
-      default: return [];
-    }
+    return aiMessages;
   };
 
   const getPartnerName = () => {
@@ -326,48 +329,421 @@ export default function ChatBox({ currentUser }) {
     return '🤖';
   };
 
+  const getPartnerSubtitle = () => {
+    return aiMode === 'groq' ? 'Llama 3.3 đang bật' : 'Chế độ trả lời mẫu';
+  };
+
+  const getPartnerStatusColor = () => {
+    return aiMode !== 'offline' ? '#2ecc71' : '#f39c12';
+  };
+
+  const getQuickChips = () => {
+    return [
+      { emoji: '📝', label: 'Viết CV', text: 'Cách viết CV Rirekisho chuẩn Nhật?' },
+      { emoji: '🙇', label: 'Chào hỏi', text: 'Quy tắc cúi chào Ojigi trong văn phòng?' },
+      { emoji: '🍻', label: 'Nomikai', text: 'Văn hóa tiệc rượu Nomikai ở Nhật?' },
+      { emoji: '🏢', label: 'HouRenSo', text: 'Nguyên tắc Hou-Ren-So là gì?' },
+      { emoji: '💼', label: 'Phỏng vấn', text: 'Cách chuẩn bị phỏng vấn Shukatsu?' },
+      { emoji: '👔', label: 'Trang phục', text: 'Quy tắc trang phục công sở Nhật Bản?' },
+      { emoji: '✉️', label: 'Email', text: 'Mẫu email tiếng Nhật xin nghỉ phép?' }
+    ];
+  };
+
   if (!currentUser) return null;
 
-  if (!isOpen) {
-    return (
+  return (
+    <>
+      <style>{`
+        /* Launcher */
+        .chat-launcher-modern {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          width: 62px;
+          height: 62px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, var(--jp-blue) 0%, #1e457e 100%);
+          color: white;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 8px 32px rgba(15, 44, 89, 0.3);
+          z-index: 9999;
+          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .chat-launcher-modern.active {
+          transform: scale(1);
+          opacity: 1;
+          pointer-events: auto;
+          animation: floatLauncher 4s ease-in-out infinite;
+        }
+        .chat-launcher-modern.inactive {
+          transform: scale(0);
+          opacity: 0;
+          pointer-events: none;
+        }
+        .chat-launcher-modern::after {
+          content: '';
+          position: absolute;
+          top: -2px;
+          left: -2px;
+          right: -2px;
+          bottom: -2px;
+          border-radius: 50%;
+          background: inherit;
+          z-index: -1;
+          opacity: 0.4;
+          animation: pulseGlow 2.5s infinite;
+        }
+
+        /* Chat Panel */
+        .chat-panel-modern {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          width: 410px;
+          max-width: calc(100vw - 48px);
+          height: 600px;
+          max-height: calc(100vh - 100px);
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.82);
+          backdrop-filter: blur(25px);
+          -webkit-backdrop-filter: blur(25px);
+          border: 1px solid rgba(255, 255, 255, 0.45);
+          box-shadow: 0 24px 70px rgba(15, 44, 89, 0.18), 0 8px 24px rgba(0, 0, 0, 0.08);
+          z-index: 9999;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                      opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                      height 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                      border-radius 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          transform-origin: calc(100% - 31px) calc(100% - 31px);
+        }
+        .chat-panel-modern.active {
+          transform: scale(1);
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .chat-panel-modern.inactive {
+          transform: scale(0);
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        :root[data-theme="dark"] .chat-panel-modern {
+          background: rgba(26, 29, 46, 0.82);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-panel-modern.minimized {
+          height: 68px;
+          border-radius: 16px;
+        }
+
+        /* Header */
+        .chat-header-modern {
+          padding: 1rem 1.4rem;
+          background: linear-gradient(135deg, var(--jp-blue) 0%, #17345e 100%);
+          color: white;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          cursor: pointer;
+          user-select: none;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        :root[data-theme="dark"] .chat-header-modern {
+          background: linear-gradient(135deg, #162235 0%, #0c121e 100%);
+        }
+
+        /* Status dots */
+        .status-dot-active {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background-color: #2ecc71;
+          border: 2px solid white;
+          box-shadow: 0 0 8px #2ecc71;
+          animation: breathingStatus 2s infinite ease-in-out;
+        }
+        .status-dot-offline {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background-color: #f39c12;
+          border: 2px solid white;
+          box-shadow: 0 0 6px #f39c12;
+        }
+
+        /* Messages container */
+        .chat-body-modern {
+          flex: 1;
+          padding: 1.2rem;
+          overflow-y: auto;
+          background: linear-gradient(180deg, rgba(245, 247, 251, 0.4) 0%, rgba(255, 255, 255, 0.4) 100%);
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        :root[data-theme="dark"] .chat-body-modern {
+          background: linear-gradient(180deg, rgba(15, 17, 23, 0.4) 0%, rgba(26, 29, 46, 0.4) 100%);
+        }
+
+        /* Scrollbar styles */
+        .chat-body-modern::-webkit-scrollbar,
+        .template-list-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .chat-body-modern::-webkit-scrollbar-track,
+        .template-list-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .chat-body-modern::-webkit-scrollbar-thumb,
+        .template-list-scroll::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 10px;
+        }
+        :root[data-theme="dark"] .chat-body-modern::-webkit-scrollbar-thumb,
+        :root[data-theme="dark"] .template-list-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Message bubble user */
+        .msg-bubble-user {
+          max-width: 85%;
+          padding: 0.75rem 1.1rem;
+          background: linear-gradient(135deg, var(--jp-blue) 0%, #1e457e 100%);
+          color: white;
+          font-size: 0.88rem;
+          line-height: 1.5;
+          border-radius: 20px 20px 4px 20px;
+          box-shadow: 0 4px 15px rgba(15, 44, 89, 0.15);
+          animation: bubbleSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          word-break: break-word;
+        }
+        :root[data-theme="dark"] .msg-bubble-user {
+          background: linear-gradient(135deg, #3572d4 0%, var(--jp-blue) 100%);
+          box-shadow: 0 4px 15px rgba(79, 142, 247, 0.2);
+        }
+
+        /* Message bubble bot */
+        .msg-bubble-bot {
+          max-width: 85%;
+          padding: 0.75rem 1.1rem;
+          background: var(--jp-card-bg);
+          color: var(--jp-text);
+          font-size: 0.88rem;
+          line-height: 1.5;
+          border-radius: 20px 20px 20px 4px;
+          border: 1px solid var(--jp-border);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+          animation: bubbleSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          word-break: break-word;
+        }
+        :root[data-theme="dark"] .msg-bubble-bot {
+          background: rgba(26, 29, 46, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* Suggested Topic cards */
+        .welcome-card-modern {
+          background: rgba(255, 255, 255, 0.75);
+          border: 1px solid var(--jp-border);
+          border-radius: 14px;
+          padding: 0.9rem;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          text-align: left;
+          gap: 0.25rem;
+        }
+        :root[data-theme="dark"] .welcome-card-modern {
+          background: rgba(26, 29, 46, 0.4);
+        }
+        .welcome-card-modern:hover {
+          border-color: var(--jp-blue);
+          background: var(--jp-card-bg);
+          transform: translateY(-3px);
+          box-shadow: 0 8px 20px rgba(15, 44, 89, 0.08);
+        }
+
+        /* Sparkles templates button */
+        .btn-sparkles {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          border: 1px solid var(--jp-border);
+          background: var(--jp-card-bg);
+          color: var(--jp-blue);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          flex-shrink: 0;
+        }
+        :root[data-theme="dark"] .btn-sparkles {
+          color: var(--jp-blue);
+          border-color: rgba(255, 255, 255, 0.08);
+        }
+        .btn-sparkles:hover {
+          background: var(--jp-blue);
+          color: white;
+          transform: rotate(15deg) scale(1.05);
+          box-shadow: 0 0 12px rgba(15, 44, 89, 0.2);
+        }
+        .btn-sparkles.active {
+          background: var(--jp-blue);
+          color: white;
+          transform: rotate(45deg);
+        }
+
+        /* Template drawer panel */
+        .template-drawer {
+          position: absolute;
+          bottom: 70px;
+          left: 0;
+          right: 0;
+          top: 68px;
+          background: rgba(255, 255, 255, 0.94);
+          backdrop-filter: blur(25px);
+          -webkit-backdrop-filter: blur(25px);
+          border-top: 1px solid var(--jp-border);
+          display: flex;
+          flex-direction: column;
+          z-index: 100;
+          animation: drawerSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        :root[data-theme="dark"] .template-drawer {
+          background: rgba(26, 29, 46, 0.94);
+        }
+
+        .template-header {
+          padding: 0.9rem 1.2rem;
+          border-bottom: 1px solid var(--jp-border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .template-tabs-container {
+          display: flex;
+          gap: 0.4rem;
+          padding: 0.6rem 1rem;
+          border-bottom: 1px solid var(--jp-border);
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+        .template-tabs-container::-webkit-scrollbar {
+          display: none;
+        }
+
+        .template-tab {
+          padding: 0.4rem 0.8rem;
+          border-radius: 20px;
+          font-size: 0.76rem;
+          font-weight: 500;
+          background: var(--jp-surface);
+          color: var(--jp-text-muted);
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .template-tab.active {
+          background: var(--jp-blue);
+          color: white;
+        }
+
+        .template-list-scroll {
+          flex: 1;
+          padding: 1rem;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 0.8rem;
+        }
+
+        .template-card-modern {
+          background: var(--jp-card-bg);
+          border: 1px solid var(--jp-border);
+          border-radius: 12px;
+          padding: 0.85rem;
+          cursor: pointer;
+          transition: all 0.25s ease;
+          display: flex;
+          gap: 0.7rem;
+          text-align: left;
+          align-items: flex-start;
+        }
+        .template-card-modern:hover {
+          transform: translateY(-2px);
+          border-color: var(--jp-blue);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.04);
+        }
+
+        /* Animations */
+        @keyframes floatLauncher {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+
+        @keyframes pulseGlow {
+          0% { box-shadow: 0 0 0 0 rgba(15, 44, 89, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(15, 44, 89, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(15, 44, 89, 0); }
+        }
+
+        @keyframes modalPop {
+          0% { transform: scale(0.85) translateY(20px); opacity: 0; }
+          100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        @keyframes modalPopOut {
+          0% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(0.85) translateY(20px); opacity: 0; }
+        }
+
+        @keyframes drawerSlideUp {
+          0% { transform: translateY(100%); }
+          100% { transform: translateY(0); }
+        }
+
+        @keyframes bubbleSlideUp {
+          0% { transform: translateY(8px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes breathingStatus {
+          0%, 100% { opacity: 1; box-shadow: 0 0 8px #2ecc71; }
+          50% { opacity: 0.6; box-shadow: 0 0 2px #2ecc71; }
+        }
+
+        @keyframes bounce {
+          0%, 80%, 100% { transform: scale(0); }
+          40% { transform: scale(1.0); }
+        }
+      `}</style>
+
+      {/* Launcher */}
       <button
         onClick={() => { setIsOpen(true); setHasUnread(false); }}
-        className="chat-launcher hover-scale"
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '60px',
-          height: '60px',
-          minHeight: 'unset',
-          minWidth: 'unset',
-          padding: 0,
-          aspectRatio: '1 / 1',
-          flexShrink: 0,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--jp-blue) 0%, #1e457e 100%)',
-          color: 'white',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 8px 30px rgba(15, 44, 89, 0.35)',
-          zIndex: 9999,
-          transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-        }}
-        title="Trò chuyện hỗ trợ"
+        className={`chat-launcher-modern hover-scale ${isOpen ? 'inactive' : 'active'}`}
+        title="Trò chuyện hỗ trợ AI"
       >
         <MessageSquare size={26} style={{ color: 'white' }} />
         {/* AI status dot */}
-        <span style={{
+        <span className={aiMode !== 'offline' ? 'status-dot-active' : 'status-dot-offline'} style={{
           position: 'absolute',
           bottom: '4px',
           right: '4px',
           width: '12px',
           height: '12px',
-          borderRadius: '50%',
-          backgroundColor: aiMode !== 'offline' ? '#2ecc71' : '#f39c12',
           border: '2px solid white',
           transition: 'background-color 0.3s'
         }} />
@@ -384,441 +760,366 @@ export default function ChatBox({ currentUser }) {
           }} />
         )}
       </button>
-    );
-  }
 
-  return (
-    <div
-      className="chat-panel"
-      style={{
-        position: 'fixed',
-        bottom: '24px',
-        right: '24px',
-        width: '390px',
-        height: isMinimized ? '55px' : '540px',
-        borderRadius: '12px',
-        background: 'var(--jp-card-bg)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid var(--jp-border)',
-        boxShadow: 'var(--jp-shadow-lg)',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-        animation: isClosing ? 'modalPopOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'modalPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-        transformOrigin: 'bottom right'
-      }}
-    >
-      {/* Header */}
+      {/* Chat Panel */}
       <div
-        style={{
-          padding: '0.85rem 1.2rem',
-          background: 'linear-gradient(135deg, var(--jp-blue) 0%, #1e3a6e 100%)',
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: 'pointer',
-          userSelect: 'none'
-        }}
-        onClick={() => setIsMinimized(!isMinimized)}
+        className={`chat-panel-modern ${isMinimized ? 'minimized' : ''} ${isOpen ? 'active' : 'inactive'}`}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontSize: '1.25rem' }}>{getPartnerAvatar()}</span>
-            <span
-              style={{
-                position: 'absolute',
-                bottom: '-2px',
-                right: '-2px',
-                width: '9px',
-                height: '9px',
-                borderRadius: '50%',
-                backgroundColor: aiMode !== 'offline' ? '#2ecc71' : '#f39c12',
-                border: '1.5px solid var(--jp-blue)',
-                transition: 'background-color 0.3s'
-              }}
-            />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
-              {getPartnerName()}
-            </h4>
-            <span style={{ fontSize: '0.68rem', opacity: 0.85, display: 'flex', alignItems: 'center', gap: '3px' }}>
-              {aiMode === 'groq' ? (
-                <><Cpu size={10} /> Llama 3.3 đang bật</>
-              ) : (
-                <><WifiOff size={10} /> Chế độ trả lời mẫu</>
-              )}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={e => e.stopPropagation()}>
-          <button
-            onClick={handleResetChat}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: '0.2rem' }}
-            title="Làm mới cuộc trò chuyện"
-          >
-            <RefreshCw size={15} />
-          </button>
-          <button
-            onClick={() => setIsMinimized(!isMinimized)}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: '0.2rem' }}
-          >
-            {isMinimized ? <Maximize2 size={15} /> : <Minimize2 size={15} />}
-          </button>
-          <button
-            onClick={handleClose}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: '0.2rem' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      </div>
-
-      {!isMinimized && (
-        <>
-          {/* Quick FAQ Chips (AI mode only) */}
-          {chatMode === 'ai' && (
-            <div style={{ position: 'relative', background: 'var(--jp-soft-surface)', borderBottom: '1px solid var(--jp-border)', padding: '0.4rem 0' }}>
-              <button
-                onClick={handleScrollLeft}
-                style={{ position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)', background: 'var(--jp-surface-raised)', border: '1.5px solid #0f2c59', borderRadius: '50%', width: '28px', height: '28px', minHeight: 'unset', minWidth: 'unset', padding: 0, aspectRatio: '1 / 1', flexShrink: 0, cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
-              >
-                <ChevronLeft size={16} color="var(--jp-blue)" />
-              </button>
-
-              <div
-                ref={scrollContainerRef}
+        {/* Header */}
+        <div
+          className="chat-header-modern"
+          onClick={() => setIsMinimized(!isMinimized)}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: '1.35rem' }}>{getPartnerAvatar()}</span>
+              <span
+                className={aiMode !== 'offline' ? 'status-dot-active' : 'status-dot-offline'}
                 style={{
-                  padding: '0 2.5rem', //menu
-                  display: 'flex',
-                  gap: '0.5rem',
-                  overflowX: 'auto',
-                  whiteSpace: 'nowrap',
-                  scrollBehavior: 'smooth'
+                  position: 'absolute',
+                  bottom: '-2px',
+                  right: '-2px',
+                  border: '1.5px solid var(--jp-blue)',
                 }}
-                className="no-scrollbar"
-              >
-                {[
-                  { emoji: '📝', label: 'Viết CV', text: 'Cách viết CV Rirekisho chuẩn Nhật?' },
-                  { emoji: '🙇', label: 'Chào hỏi', text: 'Quy tắc cúi chào Ojigi trong văn phòng?' },
-                  { emoji: '🍻', label: 'Nomikai', text: 'Văn hóa tiệc rượu Nomikai ở Nhật?' },
-                  { emoji: '🏢', label: 'HouRenSo', text: 'Nguyên tắc Hou-Ren-So là gì?' },
-                  { emoji: '💼', label: 'Phỏng vấn', text: 'Cách chuẩn bị phỏng vấn Shukatsu?' },
-                  { emoji: '👔', label: 'Trang phục', text: 'Quy tắc trang phục công sở Nhật Bản?' },
-                  { emoji: '✉️', label: 'Email', text: 'Mẫu email tiếng Nhật xin nghỉ phép?' }
-                ].map((chip) => (
-                  <span
-                    key={chip.label}
-                    onClick={() => setInputValue(chip.text)}
-                    style={{
-                      fontSize: '0.75rem',
-                      background: 'var(--jp-card-bg)',
-                      border: '2.5px solid var(--jp-border)',
-                      padding: '0.65rem 0.65rem',
-                      borderRadius: '50px',
-                      cursor: 'pointer',
-                      color: 'var(--jp-text)',
-                      transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
-                      flexShrink: 0,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = 'var(--jp-blue)';
-                      e.currentTarget.style.background = 'var(--jp-blue-light)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = 'var(--jp-border)';
-                      e.currentTarget.style.background = 'var(--jp-card-bg)';
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
-                    }}
-                  >
-                    <span>{chip.emoji}</span>
-                    <span style={{ fontWeight: 500 }}>{chip.label}</span>
-                  </span>
-                ))}
-              </div>
-
-              <button
-                onClick={handleScrollRight}
-                style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'var(--jp-surface-raised)', border: '1.5px solid #0f2c59', borderRadius: '50%', width: '28px', height: '28px', minHeight: 'unset', minWidth: 'unset', padding: 0, aspectRatio: '1 / 1', flexShrink: 0, cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
-              >
-                <ChevronRight size={16} color="var(--jp-blue)" />
-              </button>
+              />
             </div>
-          )}
+            <div>
+              <h4 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, lineHeight: 1.2, letterSpacing: '0.1px' }}>
+                {getPartnerName()}
+              </h4>
+              <span style={{ fontSize: '0.68rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                {aiMode === 'groq' ? (
+                  <><Cpu size={10} /> Llama 3.3 đang bật</>
+                ) : (
+                  <><WifiOff size={10} /> Chế độ trả lời mẫu</>
+                )}
+              </span>
+            </div>
+          </div>
 
-          {/* Messages Body */}
-          <div
-            style={{
-              flex: 1,
-              padding: '1rem',
-              overflowY: 'auto',
-              background: 'linear-gradient(180deg, var(--jp-bg) 0%, var(--jp-surface-raised) 100%)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.85rem'
-            }}
-          >
-            {getMessages().map((msg) => {
-              const isUser = msg.sender === 'user';
-              return (
-                <div
-                  key={msg.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: isUser ? 'flex-end' : 'flex-start',
-                    alignItems: 'flex-end',
-                    gap: '0.45rem'
-                  }}
-                >
-                  {!isUser && (
-                    <div style={{
-                      fontSize: '1.1rem',
-                      width: '28px',
-                      height: '28px',
-                      aspectRatio: '1 / 1',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'var(--jp-card-bg)',
-                      borderRadius: '50%',
-                      border: '1px solid var(--jp-border)',
-                      flexShrink: 0
-                    }}>
-                      {getPartnerAvatar()}
-                    </div>
-                  )}
-                  <div style={{ maxWidth: '78%' }}>
-                    <div
-                      style={{
-                        padding: '0.6rem 0.85rem',
-                        background: isUser
-                          ? 'linear-gradient(135deg, var(--jp-blue) 0%, #1e457e 100%)'
-                          : 'var(--jp-card-bg)',
-                        color: isUser ? 'white' : 'var(--jp-text)',
-                        fontSize: '0.84rem',
-                        lineHeight: 1.5,
-                        boxShadow: isUser
-                          ? '0 2px 10px rgba(15,44,89,0.2)'
-                          : '0 2px 8px rgba(0,0,0,0.06)',
-                        border: isUser ? 'none' : '1px solid rgba(15,44,89,0.07)',
-                        borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                        wordBreak: 'break-word',
-                        whiteSpace: isUser ? 'pre-wrap' : 'normal'
-                      }}
-                      className={!isUser ? 'markdown-body' : ''}
-                    >
-                      {isUser ? msg.text : <ReactMarkdown>{msg.text}</ReactMarkdown>}
-                    </div>
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: '0.63rem',
-                        color: 'var(--jp-text-muted)',
-                        marginTop: '0.2rem',
-                        textAlign: isUser ? 'right' : 'left',
-                        padding: '0 0.25rem'
-                      }}
-                    >
-                      {msg.time}
-                    </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={e => e.stopPropagation()}>
+            <button
+              onClick={handleResetChat}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: '0.2rem' }}
+              title="Làm mới cuộc trò chuyện"
+            >
+              <RefreshCw size={15} />
+            </button>
+            <button
+              onClick={() => setIsMinimized(!isMinimized)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: '0.2rem' }}
+            >
+              {isMinimized ? <Maximize2 size={15} /> : <Minimize2 size={15} />}
+            </button>
+            <button
+              onClick={handleClose}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: '0.2rem' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {!isMinimized && (
+          <>
+            {/* Templates Drawer overlaying the messages space */}
+            {showTemplates && (
+              <div 
+                className="template-drawer"
+                style={{
+                  bottom: aiMode !== 'offline' ? '112px' : '76px'
+                }}
+              >
+                <div className="template-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <Sparkles size={15} style={{ color: 'var(--jp-blue)' }} />
+                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--jp-text)' }}>Gợi ý câu hỏi mẫu</span>
                   </div>
-                </div>
-              );
-            })}
-
-            {/* Streaming bubble */}
-            {isStreaming && streamingText && (
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.45rem' }}>
-                <div style={{
-                  fontSize: '1.1rem', width: '28px', height: '28px',
-                  aspectRatio: '1 / 1',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'var(--jp-card-bg)', borderRadius: '50%', border: '1px solid var(--jp-border)', flexShrink: 0
-                }}>
-                  🤖
-                </div>
-                <div style={{ maxWidth: '78%' }}>
-                  <div style={{
-                    padding: '0.6rem 0.85rem',
-                    background: 'var(--jp-card-bg)',
-                    color: 'var(--jp-text)',
-                    fontSize: '0.84rem',
-                    lineHeight: 1.5,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                    border: '1px solid rgba(15,44,89,0.07)',
-                    borderRadius: '14px 14px 14px 2px',
-                    wordBreak: 'break-word',
-                    whiteSpace: 'normal'
-                  }}
-                    className="markdown-body"
+                  <button 
+                    type="button" 
+                    onClick={() => setShowTemplates(false)}
+                    style={{ background: 'none', border: 'none', color: 'var(--jp-text-muted)', cursor: 'pointer', padding: '0.2rem' }}
                   >
-                    <ReactMarkdown>{streamingText + ' ▍'}</ReactMarkdown>
-                  </div>
+                    <X size={15} />
+                  </button>
                 </div>
-              </div>
-            )}
-
-            {/* Typing indicator (for senpai mode) */}
-            {isTyping && !isStreaming && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{
-                  fontSize: '1.1rem', width: '28px', height: '28px',
-                  aspectRatio: '1 / 1', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'var(--jp-card-bg)', borderRadius: '50%', border: '1px solid var(--jp-border)'
-                }}>
-                  {getPartnerAvatar()}
+                <div className="template-tabs-container">
+                  {[
+                    { id: 'all', label: 'Tất cả' },
+                    { id: 'cv', label: 'CV & Phỏng vấn' },
+                    { id: 'communication', label: 'Giao tiếp' },
+                    { id: 'life', label: 'Đời sống Nhật' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`template-tab ${activeTemplateTab === tab.id ? 'active' : ''}`}
+                      onClick={() => setActiveTemplateTab(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
-                <div style={{
-                  background: 'var(--jp-card-bg)',
-                  padding: '0.55rem 0.85rem',
-                  borderRadius: '14px 14px 14px 2px',
-                  border: '1px solid rgba(15,44,89,0.07)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {[0, 0.2, 0.4].map((delay, i) => (
-                    <span key={i} style={{
-                      width: '6px', height: '6px',
-                      background: 'var(--jp-text-muted)',
-                      borderRadius: '50%',
-                      display: 'inline-block',
-                      animation: `bounce 1.4s infinite ease-in-out both`,
-                      animationDelay: `${delay}s`
-                    }} />
+                <div className="template-list-scroll">
+                  {getFilteredTemplates().map(t => (
+                    <div
+                      key={t.id}
+                      className="template-card-modern"
+                      onClick={() => {
+                        setInputValue(t.prompt);
+                        setShowTemplates(false);
+                      }}
+                    >
+                      <span style={{ fontSize: '1.2rem', marginTop: '2px' }}>{t.emoji}</span>
+                      <div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--jp-blue)', marginBottom: '0.15rem' }}>{t.title}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--jp-text-muted)', lineHeight: '1.3' }}>{t.desc}</div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div ref={messagesEndRef} />
-          </div>
+            {/* Messages Body */}
+            <div className="chat-body-modern">
+              {getMessages().map((msg) => {
+                const isUser = msg.sender === 'user';
+                return (
+                  <div
+                    key={msg.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: isUser ? 'flex-end' : 'flex-start',
+                      alignItems: 'flex-end',
+                      gap: '0.55rem'
+                    }}
+                  >
+                    {!isUser && (
+                      <div style={{
+                        fontSize: '1.15rem',
+                        width: '32px',
+                        height: '32px',
+                        aspectRatio: '1 / 1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'var(--jp-card-bg)',
+                        borderRadius: '50%',
+                        border: '1px solid var(--jp-border)',
+                        flexShrink: 0,
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.04)'
+                      }}>
+                        {getPartnerAvatar()}
+                      </div>
+                    )}
+                    <div style={{ maxWidth: '80%' }}>
+                      <div
+                        className={isUser ? 'msg-bubble-user' : 'msg-bubble-bot markdown-body'}
+                      >
+                        {isUser ? msg.text : <ReactMarkdown>{msg.text}</ReactMarkdown>}
+                      </div>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: '0.65rem',
+                          color: 'var(--jp-text-muted)',
+                          marginTop: '0.25rem',
+                          textAlign: isUser ? 'right' : 'left',
+                          padding: '0 0.35rem',
+                          opacity: 0.85
+                        }}
+                      >
+                        {msg.time}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
 
-          {/* Input Form */}
-          <form
-            onSubmit={handleSendMessage}
-            style={{
-              padding: '.75rem 0.85rem',
-              background: 'var(--jp-card-bg)',
-              borderTop: '1px solid var(--jp-border)',
-              display: 'flex',
-              gap: '0.5rem',
-              alignItems: 'center'
-            }}
-          >
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={isStreaming ? 'AI đang trả lời...' : 'Nhập câu hỏi...'}
-              disabled={isStreaming}
+              {/* Streaming bubble */}
+              {isStreaming && streamingText && (
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.55rem' }}>
+                  <div style={{
+                    fontSize: '1.15rem', width: '32px', height: '32px',
+                    aspectRatio: '1 / 1',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--jp-card-bg)', borderRadius: '50%', border: '1px solid var(--jp-border)', flexShrink: 0,
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.04)'
+                  }}>
+                    🤖
+                  </div>
+                  <div style={{ maxWidth: '80%' }}>
+                    <div className="msg-bubble-bot markdown-body">
+                      <ReactMarkdown>{streamingText + ' ▍'}</ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Typing indicator */}
+              {isTyping && !isStreaming && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                  <div style={{
+                    fontSize: '1.15rem', width: '32px', height: '32px',
+                    aspectRatio: '1 / 1', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--jp-card-bg)', borderRadius: '50%', border: '1px solid var(--jp-border)',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.04)'
+                  }}>
+                    {getPartnerAvatar()}
+                  </div>
+                  <div style={{
+                    background: 'var(--jp-card-bg)',
+                    padding: '0.6rem 1rem',
+                    borderRadius: '20px 20px 20px 4px',
+                    border: '1px solid var(--jp-border)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {[0, 0.2, 0.4].map((delay, i) => (
+                      <span key={i} style={{
+                        width: '6px', height: '6px',
+                        background: 'var(--jp-text-muted)',
+                        borderRadius: '50%',
+                        display: 'inline-block',
+                        animation: `bounce 1.4s infinite ease-in-out both`,
+                        animationDelay: `${delay}s`
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Form */}
+            <form
+              onSubmit={handleSendMessage}
               style={{
-                flex: 1,
-                padding: '0.6rem 0.9rem',
-                border: '1.5px solid var(--jp-border)',
-                borderRadius: '20px',
-                fontSize: '0.84rem',
-                outline: 'none',
-                background: isStreaming ? 'var(--jp-surface-raised)' : 'var(--jp-bg)',
-                transition: 'border-color 0.2s',
-                color: 'var(--jp-text)'
+                padding: '0.8rem 1rem',
+                background: 'var(--jp-card-bg)',
+                borderTop: '1px solid var(--jp-border)',
+                display: 'flex',
+                gap: '0.6rem',
+                alignItems: 'center',
+                position: 'relative',
+                zIndex: 101
               }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--jp-blue)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--jp-border)'}
-            />
-            {isStreaming ? (
+            >
               <button
                 type="button"
-                onClick={handleStopStreaming}
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  minHeight: 'unset',
-                  minWidth: 'unset',
-                  padding: 0,
-                  aspectRatio: '1 / 1',
-                  borderRadius: '50%',
-                  background: '#e74c3c',
-                  color: 'white',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  flexShrink: 0
-                }}
-                title="Dừng tạo"
+                className={`btn-sparkles ${showTemplates ? 'active' : ''}`}
+                onClick={() => setShowTemplates(!showTemplates)}
+                title="Xem gợi ý câu hỏi mẫu"
               >
-                <span style={{ width: '10px', height: '10px', background: 'white', borderRadius: '2px', display: 'block' }} />
+                <Sparkles size={16} />
               </button>
-            ) : (
-              <button
-                type="submit"
+
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={isStreaming ? 'AI đang soạn câu trả lời...' : 'Nhập câu hỏi tại đây...'}
+                disabled={isStreaming}
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  minHeight: 'unset',
-                  minWidth: 'unset',
-                  padding: 0,
-                  aspectRatio: '1 / 1',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--jp-red) 0%, #c0392b 100%)',
-                  color: 'white',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  flexShrink: 0
+                  flex: 1,
+                  padding: '0.65rem 1rem',
+                  border: '1px solid var(--jp-border)',
+                  borderRadius: '24px',
+                  fontSize: '0.86rem',
+                  outline: 'none',
+                  background: isStreaming ? 'var(--jp-surface)' : 'var(--jp-bg)',
+                  transition: 'all 0.2s ease',
+                  color: 'var(--jp-text)'
                 }}
-                className="hover-scale"
-              >
-                <Send size={15} style={{ color: 'white' }} />
-              </button>
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'var(--jp-blue)';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(15, 44, 89, 0.08)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'var(--jp-border)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              {isStreaming ? (
+                <button
+                  type="button"
+                  onClick={handleStopStreaming}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    minHeight: 'unset',
+                    minWidth: 'unset',
+                    padding: 0,
+                    aspectRatio: '1 / 1',
+                    borderRadius: '50%',
+                    background: '#e74c3c',
+                    color: 'white',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(231, 76, 60, 0.25)'
+                  }}
+                  title="Dừng tạo"
+                >
+                  <span style={{ width: '10px', height: '10px', background: 'white', borderRadius: '2px', display: 'block' }} />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    minHeight: 'unset',
+                    minWidth: 'unset',
+                    padding: 0,
+                    aspectRatio: '1 / 1',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--jp-red) 0%, #c0392b 100%)',
+                    color: 'white',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(188, 0, 45, 0.25)'
+                  }}
+                  className="hover-scale"
+                >
+                  <Send size={15} style={{ color: 'white' }} />
+                </button>
+              )}
+            </form>
+
+            {/* Footer: Powered by */}
+            {aiMode !== 'offline' && (
+              <div style={{
+                padding: '0.4rem 1rem',
+                background: 'var(--jp-surface-raised)',
+                borderTop: '1px solid var(--jp-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.3rem',
+                fontSize: '0.62rem',
+                color: 'var(--jp-text-muted)'
+              }}>
+                <Cpu size={10} />
+                {aiMode === 'groq' ? 'Powered by Llama 3.3' : 'Powered by Gemini API · gemini-1.5-flash'}
+              </div>
             )}
-          </form>
-
-          {/* Footer: Powered by */}
-          {aiMode !== 'offline' && (
-            <div style={{
-              padding: '0.3rem 1rem',
-              background: 'var(--jp-surface-raised)',
-              borderTop: '1px solid var(--jp-border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.3rem',
-              fontSize: '0.62rem',
-              color: 'var(--jp-text-muted)'
-            }}>
-              <Cpu size={10} />
-              {aiMode === 'groq' ? 'Powered by Llama 3.3' : 'Powered by Gemini API · gemini-1.5-flash'}
-            </div>
-          )}
-        </>
-      )}
-
-      <style>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-      `}</style>
-    </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }
