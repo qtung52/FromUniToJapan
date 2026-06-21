@@ -925,9 +925,13 @@ export default function AdminPanel({
                   <CustomDropdown
                     options={[
                       { value: 'ojigi', label: 'Cúi chào (Ojigi)' },
-                      { value: 'meishi', label: 'Danh thiếp & Giao tiếp (Meishi)' },
+                      { value: 'meishi', label: 'Danh thiếp (Meishi)' },
                       { value: 'seating', label: 'Ghế ngồi (Kamiza)' },
-                      { value: 'dresscode', label: 'Trang phục' }
+                      { value: 'dresscode', label: 'Trang phục (Dresscode)' },
+                      { value: 'nomikai', label: 'Tiệc rượu (Nomikai)' },
+                      { value: 'email_phone', label: 'Email & Điện thoại (Email & Phone)' },
+                      { value: 'omiyage', label: 'Công tác & Quà cáp (Omiyage)' },
+                      { value: 'workrules', label: 'Quy tắc làm việc (Work Rules)' }
                     ]}
                     value={dictCategory}
                     onChange={setDictCategory}

@@ -32,7 +32,7 @@ export default function Hero({ onViewChange }) {
             <div className={styles.mockupHeader}>
               <div className={styles.mockupAvatar}>👩‍💻</div>
               <div style={{ flex: 1 }}>
-                <div className={styles.mockupTitle}>Nihon Career Ready</div>
+                <div className={styles.mockupTitle}>From Uni to Japan</div>
                 <div className={styles.mockupSubtitle}>Hoàn thành lộ trình</div>
               </div>
             </div>

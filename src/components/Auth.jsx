@@ -158,7 +158,7 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
           email: 'admin@nihon.com',
           isAdmin: true,
           avatar: '🦊',
-          bio: 'Quản trị viên hệ thống Nihon Career Ready. Rất vui được hỗ trợ và định hướng văn hóa cho các bạn Kouhai.',
+          bio: 'Quản trị viên hệ thống From Uni to Japan. Rất vui được hỗ trợ và định hướng văn hóa cho các bạn Kouhai.',
           careerGoal: 'Lãnh đạo Giáo dục / Nhân sự Nhật Bản'
         };
         localStorage.setItem('session_user', JSON.stringify(adminUser));
@@ -277,7 +277,7 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
 
           <div className={styles.authPromoLogo}>
             <img src="/logo.png" alt="Logo" className={styles.brandIcon} />
-            <span>Nihon Career Ready</span>
+            <span>From Uni to Japan</span>
           </div>
 
           <div className={styles.authPromoMain}>
@@ -288,7 +288,7 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
             </div>
             <h1 className={styles.authPromoQuote}>
               Chào mừng trở lại <br />
-              <span className={styles.textGradient}>Nihon Career Ready</span>
+              <span className={styles.textGradient}>From Uni to Japan</span>
             </h1>
             <p className={styles.authPromoDesc}>
               Trải nghiệm học tập văn hóa doanh nghiệp Nhật Bản theo phong cách hoàn toàn mới. Nắm bắt quy tắc, luyện tập tình huống và tạo CV Rirekisho chỉ trong vài phút.
@@ -300,7 +300,7 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
                 <div className={styles.mockupHeader}>
                   <div className={styles.mockupAvatar}>👩‍💻</div>
                   <div style={{ flex: 1 }}>
-                    <div className={styles.mockupTitle}>Nihon Career Ready</div>
+                    <div className={styles.mockupTitle}>From Uni to Japan</div>
                     <div className={styles.mockupSubtitle}>Hoàn thành lộ trình</div>
                   </div>
                 </div>
@@ -322,7 +322,7 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
           </div>
 
           <div className={styles.authPromoFooter}>
-            © {new Date().getFullYear()} Nihon Career Ready. Thiết kế tối giản tinh tế.
+            © {new Date().getFullYear()} From Uni to Japan. Thiết kế tối giản tinh tế.
           </div>
         </div>
 
@@ -342,14 +342,14 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
             <div className={styles.authHeader}>
               <div className={styles.formBranding}>
                 <img src="/logo.png" alt="Logo" className={styles.formBrandIcon} />
-                <span className={styles.formBrandingText}>Nihon Career Ready</span>
+                <span className={styles.formBrandingText}>From Uni to Japan</span>
               </div>
               <h2 className={styles.authTitle}>
                 {authMode === 'login' ? 'Đăng Nhập' : authMode === 'register' ? 'Tạo Tài Khoản' : 'Khôi Phục'}
               </h2>
               <p className={styles.authSubtitle}>
                 {authMode === 'login'
-                  ? 'Chào mừng bạn quay lại với Nihon Career Ready'
+                  ? 'Chào mừng bạn quay lại với From Uni to Japan'
                   : authMode === 'register'
                     ? 'Đăng ký tài khoản thành viên mới'
                     : 'Khôi phục mật khẩu thông qua câu hỏi bảo mật'

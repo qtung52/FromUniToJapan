@@ -1662,7 +1662,9 @@ select {
   .hero-banner,
   .section-header,
   .chat-launcher,
-  .chat-panel {
+  .chat-panel,
+  .chat-launcher-modern,
+  .chat-panel-modern {
     display: none !important;
   }
 

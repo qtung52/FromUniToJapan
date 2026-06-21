@@ -130,7 +130,65 @@ export async function setSharedArray(key, value) {
 
 export async function seedSharedArray(key, fallback = []) {
   const value = await getSharedArray(key, fallback);
-  if (Array.isArray(value) && value.length > 0) return value;
+  if (Array.isArray(value) && value.length > 0) {
+    let merged = [...value];
+    let changed = false;
+    for (const item of fallback) {
+      const existingIdx = value.findIndex(existing => existing.id === item.id);
+      if (existingIdx === -1) {
+        merged.push(item);
+        changed = true;
+      } else {
+        const existing = value[existingIdx];
+        let hasDiff = false;
+        
+        // Dictionary-specific fields check
+        if (
+          existing.titleJp !== item.titleJp ||
+          existing.titleVi !== item.titleVi ||
+          existing.category !== item.category
+        ) {
+          hasDiff = true;
+        }
+        
+        // Roleplay-specific fields check
+        if (
+          existing.title !== item.title ||
+          existing.description !== item.description
+        ) {
+          hasDiff = true;
+        }
+        
+        // Check options change
+        if (Array.isArray(existing.options) && Array.isArray(item.options)) {
+          if (existing.options.length !== item.options.length) {
+            hasDiff = true;
+          } else {
+            for (let oIdx = 0; oIdx < item.options.length; oIdx++) {
+              if (
+                existing.options[oIdx]?.text !== item.options[oIdx]?.text ||
+                existing.options[oIdx]?.isCorrect !== item.options[oIdx]?.isCorrect ||
+                existing.options[oIdx]?.explanation !== item.options[oIdx]?.explanation
+              ) {
+                hasDiff = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (hasDiff) {
+          merged[existingIdx] = { ...existing, ...item };
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      await setSharedArray(key, merged);
+      return merged;
+    }
+    return value;
+  }
   await setSharedArray(key, fallback);
   return fallback;
 }

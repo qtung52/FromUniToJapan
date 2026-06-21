@@ -8,7 +8,7 @@ export default function Footer() {
           <div className={styles.brand}>
             <div className={styles.logo}>
               <div className={styles.dot}></div>
-              <span>Nihon Career Ready</span>
+              <span>From Uni to Japan</span>
             </div>
             <p className={styles.tagline}>
               Ứng dụng hỗ trợ sinh viên Việt Nam chuẩn bị hành trang văn hóa và kỹ năng giao tiếp khi bước vào môi trường công sở Nhật Bản.
@@ -26,7 +26,7 @@ export default function Footer() {
         </div>
         
         <div className={styles.bottom}>
-          <span className={styles.copyright}>&copy; 2026 Nihon Career Ready. All rights reserved.</span>
+          <span className={styles.copyright}>&copy; 2026 From Uni to Japan. All rights reserved.</span>
         </div>
       </div>
     </footer>

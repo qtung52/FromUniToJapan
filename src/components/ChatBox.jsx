@@ -136,10 +136,29 @@ export default function ChatBox({ currentUser }) {
 
   const [isTyping, setIsTyping] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
-  const [streamingText, setStreamingText] = useState('');
 
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const streamingMsgIdRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  }, [inputValue]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      // Call onSubmit/handleSendMessage handler manually, passing a dummy event if needed or trigger the submit handler
+      const form = e.target.form;
+      if (form) {
+        form.requestSubmit();
+      }
+    }
+  };
 
   const handleResetChat = () => {
     setAiMessages([
@@ -149,8 +168,13 @@ export default function ChatBox({ currentUser }) {
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [aiMessages, isTyping, isOpen, isMinimized, streamingText]);
+    const hasStreamingMsg = aiMessages.some(m => m.isStreaming);
+    if (hasStreamingMsg) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [aiMessages, isTyping, isOpen, isMinimized]);
 
   // --- Groq API streaming (for Vercel deploy) ---
   const callGroqStreaming = async (apiHistory, onChunk, onDone, onError) => {
@@ -233,8 +257,8 @@ export default function ChatBox({ currentUser }) {
 
     if (callFn) {
       setIsStreaming(true);
-      setStreamingText('');
-      const streamId = Date.now() + 1;
+      const botMsgId = Date.now() + 1;
+      streamingMsgIdRef.current = botMsgId;
 
       // Xây dựng lịch sử trò chuyện để gửi cho AI hiểu context
       const apiHistory = newMessages.map(m => ({
@@ -242,17 +266,26 @@ export default function ChatBox({ currentUser }) {
         content: m.text
       }));
 
+      setAiMessages(prev => [...prev, {
+        id: botMsgId,
+        sender: 'bot',
+        text: '',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isStreaming: true
+      }]);
+
       callFn(
         apiHistory,
-        (partialText) => setStreamingText(partialText),
+        (partialText) => {
+          setAiMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, text: partialText } : m));
+        },
         (finalText) => {
-          setAiMessages(prev => [...prev, {
-            id: streamId,
-            sender: 'bot',
+          setAiMessages(prev => prev.map(m => m.id === botMsgId ? {
+            ...m,
             text: finalText || 'Xin lỗi, tôi không tạo được phản hồi. Thử lại nhé!',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }]);
-          setStreamingText('');
+            isStreaming: false
+          } : m));
+          streamingMsgIdRef.current = null;
           setIsStreaming(false);
         },
         (error) => {
@@ -270,13 +303,12 @@ export default function ChatBox({ currentUser }) {
             errorMsg = '⚠️ Lỗi kết nối Ollama.';
           }
 
-          setAiMessages(prev => [...prev, {
-            id: Date.now() + 2,
-            sender: 'bot',
+          setAiMessages(prev => prev.map(m => m.id === botMsgId ? {
+            ...m,
             text: errorMsg,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }]);
-          setStreamingText('');
+            isStreaming: false
+          } : m));
+          streamingMsgIdRef.current = null;
           setIsStreaming(false);
           setAiMode('offline');
         }
@@ -305,15 +337,14 @@ export default function ChatBox({ currentUser }) {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    if (streamingText) {
-      setAiMessages(prev => [...prev, {
-        id: Date.now(),
-        sender: 'bot',
-        text: streamingText + ' [dừng]',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }]);
+    if (streamingMsgIdRef.current) {
+      setAiMessages(prev => prev.map(m => m.id === streamingMsgIdRef.current ? {
+        ...m,
+        text: m.text + ' [dừng]',
+        isStreaming: false
+      } : m));
+      streamingMsgIdRef.current = null;
     }
-    setStreamingText('');
     setIsStreaming(false);
   };
 
@@ -515,7 +546,7 @@ export default function ChatBox({ currentUser }) {
 
         /* Message bubble user */
         .msg-bubble-user {
-          max-width: 85%;
+          max-width: 100%;
           padding: 0.75rem 1.1rem;
           background: linear-gradient(135deg, var(--jp-blue) 0%, #1e457e 100%);
           color: white;
@@ -533,7 +564,7 @@ export default function ChatBox({ currentUser }) {
 
         /* Message bubble bot */
         .msg-bubble-bot {
-          max-width: 85%;
+          max-width: 100%;
           padding: 0.75rem 1.1rem;
           background: var(--jp-card-bg);
           color: var(--jp-text);
@@ -728,6 +759,50 @@ export default function ChatBox({ currentUser }) {
           0%, 80%, 100% { transform: scale(0); }
           40% { transform: scale(1.0); }
         }
+
+        @keyframes geminiPulse {
+          0% { opacity: 0.2; transform: scale(0.9); }
+          50% { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 0.2; transform: scale(0.9); }
+        }
+
+        .msg-bubble-bot.streaming > *:last-child::after {
+          content: '';
+          display: inline-block;
+          width: 6.5px;
+          height: 15px;
+          background: linear-gradient(135deg, var(--jp-blue) 0%, #00d2ff 100%);
+          margin-left: 6px;
+          border-radius: 3px;
+          vertical-align: middle;
+          animation: geminiPulse 1.2s infinite ease-in-out;
+          box-shadow: 0 0 8px rgba(0, 210, 255, 0.6);
+        }
+
+        .chat-textarea {
+          flex: 1;
+          padding: 0.65rem 1rem;
+          border: 1px solid var(--jp-border);
+          border-radius: 20px;
+          font-size: 0.86rem;
+          line-height: 1.4;
+          outline: none;
+          background: var(--jp-bg);
+          color: var(--jp-text);
+          resize: none;
+          font-family: inherit;
+          max-height: 120px;
+          overflow-y: auto;
+          box-sizing: border-box;
+          transition: all 0.2s ease;
+        }
+        .chat-textarea:disabled {
+          background: var(--jp-surface);
+          cursor: not-allowed;
+        }
+        :root[data-theme="dark"] .chat-textarea {
+          background: var(--jp-bg);
+        }
       `}</style>
 
       {/* Launcher */}
@@ -915,9 +990,15 @@ export default function ChatBox({ currentUser }) {
                     )}
                     <div style={{ maxWidth: '80%' }}>
                       <div
-                        className={isUser ? 'msg-bubble-user' : 'msg-bubble-bot markdown-body'}
+                        className={isUser ? 'msg-bubble-user' : `msg-bubble-bot markdown-body ${msg.isStreaming ? 'streaming' : ''}`}
                       >
-                        {isUser ? msg.text : <ReactMarkdown>{msg.text}</ReactMarkdown>}
+                        {isUser ? (
+                          msg.text
+                        ) : msg.text ? (
+                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        ) : (
+                          <p>&nbsp;</p>
+                        )}
                       </div>
                       <span
                         style={{
@@ -936,26 +1017,6 @@ export default function ChatBox({ currentUser }) {
                   </div>
                 );
               })}
-
-              {/* Streaming bubble */}
-              {isStreaming && streamingText && (
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.55rem' }}>
-                  <div style={{
-                    fontSize: '1.15rem', width: '32px', height: '32px',
-                    aspectRatio: '1 / 1',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'var(--jp-card-bg)', borderRadius: '50%', border: '1px solid var(--jp-border)', flexShrink: 0,
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.04)'
-                  }}>
-                    🤖
-                  </div>
-                  <div style={{ maxWidth: '80%' }}>
-                    <div className="msg-bubble-bot markdown-body">
-                      <ReactMarkdown>{streamingText + ' ▍'}</ReactMarkdown>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Typing indicator */}
               {isTyping && !isStreaming && (
@@ -1005,7 +1066,7 @@ export default function ChatBox({ currentUser }) {
                 borderTop: '1px solid var(--jp-border)',
                 display: 'flex',
                 gap: '0.6rem',
-                alignItems: 'center',
+                alignItems: 'flex-end',
                 position: 'relative',
                 zIndex: 101
               }}
@@ -1015,27 +1076,20 @@ export default function ChatBox({ currentUser }) {
                 className={`btn-sparkles ${showTemplates ? 'active' : ''}`}
                 onClick={() => setShowTemplates(!showTemplates)}
                 title="Xem gợi ý câu hỏi mẫu"
+                style={{ marginBottom: '1px' }} // Small visual alignment tweak
               >
                 <Sparkles size={16} />
               </button>
 
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder={isStreaming ? 'AI đang soạn câu trả lời...' : 'Nhập câu hỏi tại đây...'}
                 disabled={isStreaming}
-                style={{
-                  flex: 1,
-                  padding: '0.65rem 1rem',
-                  border: '1px solid var(--jp-border)',
-                  borderRadius: '24px',
-                  fontSize: '0.86rem',
-                  outline: 'none',
-                  background: isStreaming ? 'var(--jp-surface)' : 'var(--jp-bg)',
-                  transition: 'all 0.2s ease',
-                  color: 'var(--jp-text)'
-                }}
+                rows={1}
+                className="chat-textarea"
                 onFocus={(e) => {
                   e.target.style.borderColor = 'var(--jp-blue)';
                   e.target.style.boxShadow = '0 0 0 3px rgba(15, 44, 89, 0.08)';
@@ -1065,7 +1119,8 @@ export default function ChatBox({ currentUser }) {
                     justifyContent: 'center',
                     cursor: 'pointer',
                     flexShrink: 0,
-                    boxShadow: '0 4px 12px rgba(231, 76, 60, 0.25)'
+                    boxShadow: '0 4px 12px rgba(231, 76, 60, 0.25)',
+                    marginBottom: '2px'
                   }}
                   title="Dừng tạo"
                 >
@@ -1091,7 +1146,8 @@ export default function ChatBox({ currentUser }) {
                     cursor: 'pointer',
                     transition: 'transform 0.2s, box-shadow 0.2s',
                     flexShrink: 0,
-                    boxShadow: '0 4px 12px rgba(188, 0, 45, 0.25)'
+                    boxShadow: '0 4px 12px rgba(188, 0, 45, 0.25)',
+                    marginBottom: '2px'
                   }}
                   className="hover-scale"
                 >

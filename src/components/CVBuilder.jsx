@@ -99,11 +99,11 @@ export default function CVBuilder() {
             {currentStep === 1 && (
               <>
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Tên đọc phiên âm (Furigana)</label>
+                  <label className={styles.formLabel}>Tên đọc (フリガナ)</label>
                   <input type="text" className={styles.formInput} name="furiganaName" value={formData.furiganaName} onChange={handleChange} placeholder="グエン　ヴァン　ア" />
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Họ và tên (In hoa/Kanji)</label>
+                  <label className={styles.formLabel}>Họ và tên (漢字)</label>
                   <input type="text" className={styles.formInput} name="kanjiName" value={formData.kanjiName} onChange={handleChange} placeholder="NGUYEN VAN A" />
                 </div>
                 
@@ -141,7 +141,7 @@ export default function CVBuilder() {
                 </div>
 
                 <div className={`${styles.formGroup} ${styles.bentoItemFull}`}>
-                  <label className={styles.formLabel}>Địa chỉ phiên âm (Furigana)</label>
+                  <label className={styles.formLabel}>Địa chỉ (フリガナ)</label>
                   <input type="text" className={styles.formInput} name="addressFurigana" value={formData.addressFurigana} onChange={handleChange} />
                 </div>
                 <div className={`${styles.formGroup} ${styles.bentoItemFull}`}>

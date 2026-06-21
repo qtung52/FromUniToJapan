@@ -55,6 +55,62 @@ function ScenarioIllustration({ id }) {
       <text x="32" y="95" fontSize="6.5" fill="var(--jp-blue)" fontWeight="bold">Chào Hỏi Cúi</text>
     </svg>
   );
+  if (id === 6) return (
+    <svg viewBox="0 0 100 100" width="100%" height="140">
+      <rect x="25" y="40" width="50" height="30" rx="2" fill="none" stroke="var(--jp-blue)" strokeWidth="3" />
+      <line x1="30" y1="50" x2="60" y2="50" stroke="var(--jp-red)" strokeWidth="2.5" />
+      <line x1="30" y1="60" x2="50" y2="60" stroke="var(--jp-border)" strokeWidth="2" />
+      <path d="M10 55 L22 50 L22 60 Z" fill="var(--jp-text)" />
+      <path d="M90 55 L78 50 L78 60 Z" fill="var(--jp-text)" />
+      <text x="50" y="32" fontSize="7" fill="var(--jp-red)" textAnchor="middle" fontWeight="bold">MEISHI KOUKAN</text>
+    </svg>
+  );
+  if (id === 7) return (
+    <svg viewBox="0 0 100 100" width="100%" height="140">
+      <rect x="30" y="35" width="40" height="40" rx="20" fill="var(--jp-blue-light)" stroke="var(--jp-blue)" strokeWidth="3" />
+      <circle cx="50" cy="20" r="6" fill="var(--jp-red)" />
+      <text x="50" y="22" fontSize="5" fill="#fff" textAnchor="middle" fontWeight="bold">Sếp</text>
+      <circle cx="50" cy="90" r="6" fill="var(--jp-text)" />
+      <text x="50" y="92" fontSize="5" fill="#fff" textAnchor="middle" fontWeight="bold">Bạn</text>
+      <circle cx="20" cy="55" r="6" fill="var(--jp-border)" />
+      <circle cx="80" cy="55" r="6" fill="var(--jp-border)" />
+      <text x="50" y="58" fontSize="7.5" fill="var(--jp-red)" textAnchor="middle" fontWeight="bold">Nomikai</text>
+    </svg>
+  );
+  if (id === 8) return (
+    <svg viewBox="0 0 100 100" width="100%" height="140">
+      <rect x="25" y="25" width="50" height="50" rx="5" fill="none" stroke="var(--jp-blue)" strokeWidth="3" />
+      <rect x="25" y="25" width="50" height="12" fill="var(--jp-red)" />
+      <circle cx="35" cy="48" r="2.5" fill="var(--jp-border)" />
+      <circle cx="50" cy="48" r="2.5" fill="var(--jp-border)" />
+      <circle cx="65" cy="48" r="2.5" fill="var(--jp-border)" />
+      <circle cx="35" cy="62" r="2.5" fill="var(--jp-border)" />
+      <circle cx="50" cy="62" r="2.5" fill="var(--jp-border)" />
+      <circle cx="65" cy="62" r="2.5" fill="var(--jp-border)" />
+      <path d="M 40 58 L 60 58 L 52 50 Z" fill="var(--jp-blue)" transform="rotate(45 50 58)" />
+      <text x="50" y="90" fontSize="7.5" fill="var(--jp-red)" textAnchor="middle" fontWeight="bold">Nghỉ Phép</text>
+    </svg>
+  );
+  if (id === 9) return (
+    <svg viewBox="0 0 100 100" width="100%" height="140">
+      <path d="M20 25 H50 V50 H30 L20 60 Z" fill="var(--jp-blue-light)" stroke="var(--jp-blue)" strokeWidth="2" />
+      <text x="35" y="37" fontSize="5.5" fill="var(--jp-blue)" fontWeight="bold">Ý kiến Sếp</text>
+      <path d="M80 45 H50 V70 H70 L80 80 Z" fill="rgba(46, 204, 113, 0.05)" stroke="#2ecc71" strokeWidth="2" />
+      <text x="65" y="57" fontSize="5.5" fill="#27ae60" fontWeight="bold">Ý kiến Bạn</text>
+      <text x="50" y="93" fontSize="8" fill="var(--jp-red)" textAnchor="middle" fontWeight="bold">Yes, but...</text>
+    </svg>
+  );
+  if (id === 10) return (
+    <svg viewBox="0 0 100 100" width="100%" height="140">
+      <rect x="25" y="30" width="35" height="45" rx="3" fill="none" stroke="var(--jp-blue)" strokeWidth="3" />
+      <line x1="32" y1="42" x2="52" y2="42" stroke="var(--jp-border)" strokeWidth="2" />
+      <line x1="32" y1="52" x2="52" y2="52" stroke="var(--jp-border)" strokeWidth="2" />
+      <rect x="52" y="52" width="26" height="20" rx="3" fill="var(--jp-red)" />
+      <path d="M58 52 V44 C58 38 72 38 72 44 V52" fill="none" stroke="var(--jp-red)" strokeWidth="2.5" />
+      <circle cx="65" cy="62" r="2.5" fill="#fff" />
+      <text x="50" y="92" fontSize="7.5" fill="var(--jp-red)" textAnchor="middle" fontWeight="bold">Bảo Mật (ZIP)</text>
+    </svg>
+  );
   // Default for admin-added
   return (
     <svg viewBox="0 0 100 100" width="100%" height="140">
@@ -94,19 +150,19 @@ export const SCENARIOS = [
   {
     id: 2,
     title: "Tình huống 2: Đi làm muộn do tàu điện bị trễ chuyến",
-    description: "Sáng nay trên đường đi làm, tuyến tàu điện ngầm bạn đi gặp sự cố kỹ thuật và bị trễ 15 phút. Theo tính toán, bạn chắc chắn sẽ đến văn phòng muộn khoảng 10 phút so với giờ làm việc chính thức.",
+    description: "Sáng nay trên đường đi làm, tuyển tàu điện ngầm bạn đi gặp sự cố kỹ thuật và bị trễ 15 phút. Theo tính toán, bạn chắc chắn sẽ đến văn phòng muộn khoảng 10 phút so với giờ làm việc chính thức.",
     options: [
       {
         letter: "A",
-        text: "Gửi tin nhắn nhanh vào nhóm Chat chung (Zalo/Slack): 'Em bị trễ tàu nên tới muộn tí nhé mọi người.'",
-        isCorrect: false,
-        explanation: "Nhắn tin qua ứng dụng chat cá nhân/nhóm một cách cẩu thả khi đi muộn thường bị coi là thiếu tôn trọng. Giao tiếp khi đi muộn cần chính xác và nghiêm túc."
+        text: "Gọi điện thoại trực tiếp cho người quản lý trước giờ làm việc, xin lỗi, báo rõ lý do (trễ tàu) và đưa ra thời gian chính xác dự kiến sẽ có mặt.",
+        isCorrect: true,
+        explanation: "Hoàn hảo! Người Nhật cực kỳ coi trọng thời gian. Bạn cần gọi điện trực tiếp, xin lỗi trước, nêu lý do khách quan rõ ràng và đưa ra mốc thời gian ước lượng chính xác để cấp trên chủ động sắp xếp công việc."
       },
       {
         letter: "B",
-        text: "Gọi điện thoại trực tiếp cho người quản lý trực tiếp trước giờ làm việc, xin lỗi, báo rõ lý do (trễ tàu) và đưa ra thời gian chính xác dự kiến sẽ có mặt.",
-        isCorrect: true,
-        explanation: "Hoàn hảo! Người Nhật cực kỳ coi trọng thời gian. Bạn cần gọi điện trực tiếp, xin lỗi trước, nêu lý do khách quan rõ ràng và đưa ra mốc thời gian ước lượng chính xác để cấp trên chủ động sắp xếp công việc."
+        text: "Gửi tin nhắn nhanh vào nhóm Chat chung (Zalo/Slack): 'Em bị trễ tàu nên tới muộn tí nhé mọi người.'",
+        isCorrect: false,
+        explanation: "Nhắn tin qua ứng dụng chat cá nhân/nhóm một cách cẩu thả khi đi muộn thường bị coi là thiếu tôn trọng. Giao tiếp khi đi muộn cần chính xác và nghiêm túc."
       },
       {
         letter: "C",
@@ -123,21 +179,21 @@ export const SCENARIOS = [
     options: [
       {
         letter: "A",
+        text: "Mua thêm nhiều món đồ ăn vặt đắt tiền khác cho đủ 1,000 Yên để sếp không cần phải nhận lại tiền thừa.",
+        isCorrect: false,
+        explanation: "Tự ý tiêu tiền của sếp vào việc khác mà không có sự đồng ý trước là hành động cực kỳ tối kỵ, vi phạm lòng tin và sự tôn trọng cơ bản."
+      },
+      {
+        letter: "B",
         text: "Vui vẻ nhận lời, cảm ơn sếp rối rít và cất 850 Yên tiền thừa vào ví riêng của mình.",
         isCorrect: false,
         explanation: "Ngay cả khi sếp nói xã giao như vậy, việc nhận trực tiếp tiền thừa từ việc công vụ mang tính cá nhân là không nên. Nó dễ gây ra ấn tượng bạn là người tham lam chi li nhỏ nhặt."
       },
       {
-        letter: "B",
+        letter: "C",
         text: "Mang nước lên cho sếp, lịch sự trả lại 850 Yên tiền thừa kèm hóa đơn. Nếu sếp nhất quyết không nhận, xin phép dùng số tiền đó mua trà nước đặt ở phòng sinh hoạt chung cho cả văn phòng.",
         isCorrect: true,
         explanation: "Hành động vô cùng tinh tế và chuyên nghiệp! Điều này thể hiện sự minh bạch về tài chính và tinh thần tập thể cao, khiến sếp cực kỳ nể phục sự trung thực của bạn."
-      },
-      {
-        letter: "C",
-        text: "Mua thêm nhiều món đồ ăn vặt đắt tiền khác cho đủ 1,000 Yên để sếp không cần phải nhận lại tiền thừa.",
-        isCorrect: false,
-        explanation: "Tự ý tiêu tiền của sếp vào việc khác mà không có sự đồng ý trước là hành động cực kỳ tối kỵ, vi phạm lòng tin và sự tôn trọng cơ bản."
       }
     ]
   },
@@ -148,15 +204,15 @@ export const SCENARIOS = [
     options: [
       {
         letter: "A",
-        text: "Im lặng và coi như không biết vì đó không phải việc của mình. Tránh rắc rối không cần thiết.",
-        isCorrect: false,
-        explanation: "Im lặng khi biết sai sót có thể gây hại cho cả nhóm là thiếu tinh thần trách nhiệm. Trong môi trường Nhật, lợi ích tập thể luôn được đặt trên lợi ích cá nhân."
-      },
-      {
-        letter: "B",
         text: "Trực tiếp nhắn tin riêng cho đồng nghiệp đó một cách tế nhị: cho biết bạn vừa đọc báo cáo và muốn hỏi lại vài con số để đảm bảo mình không hiểu nhầm.",
         isCorrect: true,
         explanation: "Đây là cách xử lý tinh tế nhất! Bạn giúp đồng nghiệp chỉnh sửa kịp thời mà không làm mất mặt họ trước đám đông. Tinh thần này gọi là 'Mentsu' (面子) – giữ thể diện cho người khác."
+      },
+      {
+        letter: "B",
+        text: "Im lặng và coi như không biết vì đó không phải việc của mình. Tránh rắc rối không cần thiết.",
+        isCorrect: false,
+        explanation: "Im lặng khi biết sai sót có thể gây hại cho cả nhóm là thiếu tinh thần trách nhiệm. Trong môi trường Nhật, lợi ích tập thể luôn được đặt trên lợi ích cá nhân."
       },
       {
         letter: "C",
@@ -173,21 +229,146 @@ export const SCENARIOS = [
     options: [
       {
         letter: "A",
+        text: "Ngắt lời ngay: 'Xin lỗi sếp ơi, sếp nhầm tên em rồi! Em là [Tên Bạn] ạ.'",
+        isCorrect: false,
+        explanation: "Ngắt lời và chỉ ra lỗi của sếp ngay trước mặt khách hàng quan trọng là hành động thất lễ, làm mất mặt cả sếp lẫn công ty trong buổi gặp đầu tiên."
+      },
+      {
+        letter: "B",
         text: "Im lặng và chấp nhận cái tên sai đó trong suốt buổi họp để không làm sếp mất mặt.",
         isCorrect: false,
         explanation: "Im lặng suốt buổi họp sẽ khiến khách hàng tiếp tục gọi sai tên và tạo ra sự nhầm lẫn còn lớn hơn về sau. Sự thật sẽ lộ ra và có thể gây mất lòng tin về tính chuyên nghiệp."
       },
       {
-        letter: "B",
+        letter: "C",
         text: "Chờ đến khoảnh khắc phù hợp (ví dụ lúc trao danh thiếp), nhẹ nhàng cúi đầu và tự giới thiệu lại tên chính xác của mình một cách lịch sự, tự nhiên.",
         isCorrect: true,
         explanation: "Đây là cách xử lý khéo léo nhất! Bạn tự nhiên đính chính thông tin mà không cần nhắc đến lỗi của sếp, giúp buổi họp tiến triển suôn sẻ và xây dựng hình ảnh chuyên nghiệp với khách hàng."
+      }
+    ]
+  },
+  {
+    id: 6,
+    title: "Tình huống 6: Cách nhận danh thiếp từ đối tác người Nhật",
+    description: "Trong buổi gặp đầu tiên, đối tác người Nhật đứng dậy cúi chào và đưa danh thiếp cho bạn bằng cả hai tay. Bạn nên thực hiện việc nhận và lưu giữ danh thiếp như thế nào?",
+    options: [
+      {
+        letter: "A",
+        text: "Nhận bằng tay phải, dùng tay trái cất ngay danh thiếp vào ví cá nhân hoặc túi quần để buổi họp được bắt đầu nhanh chóng.",
+        isCorrect: false,
+        explanation: "Nhận bằng một tay hoặc cất ngay lập tức danh thiếp vào túi quần/ví bị coi là thiếu tôn trọng đối phương. Danh thiếp là đại diện cho chính con người họ."
+      },
+      {
+        letter: "B",
+        text: "Đứng dậy cúi chào, nhận danh thiếp bằng cả hai tay, trân trọng đọc to tên và chức danh để xác nhận, sau đó đặt ngay ngắn trên bàn họp họp phía trước mặt bạn.",
+        isCorrect: true,
+        explanation: "Hoàn hảo! Đây là nghi thức nhận danh thiếp chuẩn Nhật Bản. Nhận bằng hai tay thể hiện sự tôn kính, đọc lướt để ghi nhớ thông tin và đặt trên bàn họp là để trân trọng danh thiếp trong suốt cuộc gặp."
       },
       {
         letter: "C",
-        text: "Ngắt lời ngay: 'Xin lỗi sếp ơi, sếp nhầm tên em rồi! Em là [Tên Bạn] ạ.'",
+        text: "Nhận bằng cả hai tay, sau đó dùng bút viết thêm ghi chú cá nhân (như số điện thoại, ngày gặp) lên trực tiếp danh thiếp trước mặt họ để tránh quên.",
         isCorrect: false,
-        explanation: "Ngắt lời và chỉ ra lỗi của sếp ngay trước mặt khách hàng quan trọng là hành động thất lễ, làm mất mặt cả sếp lẫn công ty trong buổi gặp đầu tiên."
+        explanation: "Viết đè hay vẽ bậy lên danh thiếp của đối tác trước mặt họ là hành động cực kỳ thất lễ tại Nhật."
+      }
+    ]
+  },
+  {
+    id: 7,
+    title: "Tình huống 7: Lựa chọn vị trí ngồi trong bàn tiệc Nomikai",
+    description: "Bạn cùng sếp đi ăn tiệc rượu Nomikai để giao lưu cùng một đối tác quan trọng. Khi bước vào phòng tiệc có bàn ăn dài, bạn nên chủ động chọn vị trí ngồi nào cho bản thân mình?",
+    options: [
+      {
+        letter: "A",
+        text: "Chủ động chọn vị trí ngồi gần cửa ra vào hoặc lối đi nhất (Shimoza) để tiện việc gọi món, nhận thức ăn và phục vụ đồ uống cho mọi người.",
+        isCorrect: true,
+        explanation: "Quy tắc chỗ ngồi tiệc rượu chính xác! Người trẻ tuổi hoặc có vị trí thấp nhất nên ngồi ở Shimoza (gần cửa) để phục vụ chu đáo, nhường ghế Kamiza (ở sâu phía trong, yên tĩnh) cho sếp và khách."
+      },
+      {
+        letter: "B",
+        text: "Chủ động đi sâu vào phía trong bàn ăn, chọn chiếc ghế êm ái nhất xa cửa ra vào để ngồi trò chuyện thân mật với đối tác.",
+        isCorrect: false,
+        explanation: "Ghế trong cùng xa cửa nhất là ghế danh dự (Kamiza). Bạn tự ý ngồi vào đó sẽ bị coi là vô lễ, thiếu hiểu biết về nghi thức tối thiểu."
+      },
+      {
+        letter: "C",
+        text: "Ngồi ngay giữa sếp và đối tác để thể hiện tinh thần sẵn sàng làm phiên dịch viên và cầu nối giao tiếp cho bữa tiệc.",
+        isCorrect: false,
+        explanation: "Vị trí ngồi cần tuân thủ thứ bậc. Việc tự ý ngồi chen vào giữa sếp và đối tác không theo quy tắc sẽ gây cảm giác gò bó và bất tiện cho hai sếp thảo luận."
+      }
+    ]
+  },
+  {
+    id: 8,
+    title: "Tình huống 8: Bàn giao công việc trước kỳ nghỉ phép năm",
+    description: "Bạn đã được phê duyệt nghỉ phép năm 3 ngày vào tuần sau để đi du lịch cùng gia đình. Để công việc ở văn phòng không bị đình trệ trong thời gian bạn vắng mặt, bạn nên xử lý ra sao?",
+    options: [
+      {
+        letter: "A",
+        text: "Cứ yên tâm đi nghỉ, nếu có việc khẩn cấp thì mọi người ở văn phòng sẽ tự động biết cách mở máy tính của bạn để tìm tài liệu.",
+        isCorrect: false,
+        explanation: "Thiếu trách nhiệm! Không bàn giao cụ thể khiến đồng nghiệp lúng túng khi có sự cố phát sinh, làm ảnh hưởng nghiêm trọng tới tiến độ chung."
+      },
+      {
+        letter: "B",
+        text: "Gửi một email ngắn gọn lúc 11h đêm trước ngày nghỉ: 'Ngày mai em nghỉ phép, có gì mọi người tự xử lý giúp em nhé.'",
+        isCorrect: false,
+        explanation: "Thông báo quá sát giờ và thiếu bàn giao cụ thể thể hiện thái độ làm việc thiếu chuyên nghiệp và gây phiền hà cho đội ngũ."
+      },
+      {
+        letter: "C",
+        text: "Hoàn tất việc báo cáo nghỉ sớm ít nhất 1 tuần, lập bảng bàn giao công việc chi tiết (kèm link tài liệu, liên hệ dự phòng), gửi cho sếp và đồng nghiệp hỗ trợ trực tiếp trước khi nghỉ.",
+        isCorrect: true,
+        explanation: "Hoàn hảo! Đây là phong cách làm việc chuyên nghiệp, chu đáo. Bàn giao chi tiết giúp đồng nghiệp dễ dàng hỗ trợ bạn xử lý việc khẩn cấp mà không gặp khó khăn, sếp cũng cực kỳ an tâm."
+      }
+    ]
+  },
+  {
+    id: 9,
+    title: "Tình huống 9: Trình bày ý kiến trái ngược với Trưởng nhóm",
+    description: "Trong buổi họp nhóm bàn kế hoạch dự án mới, Trưởng nhóm đề xuất phương án A. Bạn nhận thấy phương án này có lỗ hổng lớn về chi phí và muốn đề xuất phương án B hiệu quả hơn. Bạn nên phát biểu như thế nào?",
+    options: [
+      {
+        letter: "A",
+        text: "Ngắt lời Trưởng nhóm ngay lập tức: 'Phương án A của sếp không khả thi đâu ạ, chi phí quá cao, chúng ta nên làm theo phương án B của em.'",
+        isCorrect: false,
+        explanation: "Ngắt lời cấp trên và chỉ trích trực tiếp trước mặt mọi người sẽ làm mất mặt sếp, gây ra bầu không khí căng thẳng và bị đánh giá là thiếu tôn trọng."
+      },
+      {
+        letter: "B",
+        text: "Lắng nghe sếp giải thích hết, ghi nhận các ưu điểm của phương án A, sau đó phát biểu khéo léo: 'Tôi hiểu ưu điểm của phương án A, tuy nhiên về mặt chi phí, tôi xin phép đề xuất thêm phương án B để chúng ta cùng cân nhắc...'",
+        isCorrect: true,
+        explanation: "Cách ứng xử tuyệt vời theo quy tắc 'Yes, but'! Bạn vừa thể hiện sự lắng nghe, vừa giữ thể diện cho sếp mà vẫn trình bày được ý kiến cá nhân mang tính xây dựng cao."
+      },
+      {
+        letter: "C",
+        text: "Im lặng hoàn toàn trong cuộc họp để tránh gây bất hòa với sếp, sau đó tự ý làm theo phương án B của mình khi triển khai công việc thực tế.",
+        isCorrect: false,
+        explanation: "Bằng mặt không bằng lòng và tự ý làm trái quyết định của nhóm là lỗi nghiêm trọng trong văn hóa làm việc tập thể của Nhật."
+      }
+    ]
+  },
+  {
+    id: 10,
+    title: "Tình huống 10: Gửi file báo cáo bảo mật cho đối tác",
+    description: "Bạn được giao gửi một file báo cáo tài chính nội bộ có mức độ bảo mật cao cho đối tác Nhật Bản qua email. Quy trình gửi file nào sau đây là an toàn và chuyên nghiệp nhất?",
+    options: [
+      {
+        letter: "A",
+        text: "Nén file tài liệu lại và đặt mật khẩu bảo vệ file (ZIP/PDF). Gửi email đầu tiên đính kèm file, sau đó gửi một email thứ hai riêng biệt chỉ chứa mật khẩu giải nén.",
+        isCorrect: true,
+        explanation: "Quy chuẩn bảo mật thông tin chuẩn Nhật (PPAP)! Việc gửi mật khẩu ở email riêng biệt ngăn ngừa nguy cơ nếu email đính kèm bị hack hoặc gửi nhầm địa chỉ thì người lạ vẫn không thể mở được file."
+      },
+      {
+        letter: "B",
+        text: "Đính kèm file trực tiếp và viết mật khẩu mở file ngay trong nội dung của cùng email đó để đối tác tiện mở nhanh chóng.",
+        isCorrect: false,
+        explanation: "Viết mật khẩu trong cùng một email chứa file đính kèm làm mất đi hoàn toàn ý nghĩa của việc đặt mật khẩu bảo mật, không an toàn."
+      },
+      {
+        letter: "C",
+        text: "Không cần đặt mật khẩu phiền phức, cứ gửi file đính kèm trực tiếp qua Zalo hoặc Facebook cá nhân của người liên hệ cho nhanh gọn.",
+        isCorrect: false,
+        explanation: "Sử dụng mạng xã hội cá nhân để truyền tải thông tin mật của doanh nghiệp mà không có mã hóa là hành vi vi phạm quy tắc bảo mật thông tin nghiêm trọng."
       }
     ]
   }

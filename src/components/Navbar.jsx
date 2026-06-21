@@ -58,7 +58,7 @@ export default function Navbar({ activeView, onViewChange, currentUser, onLogout
           onClick={(e) => { e.preventDefault(); handleLinkClick(currentUser ? 'home' : 'auth'); }}
         >
           <img src="/logo.png" alt="7UP Logo" className={styles.brandIcon} />
-          <span>Nihon Career Ready</span>
+          <span>From Uni to Japan</span>
         </a>
 
         {/* Menu Center */}

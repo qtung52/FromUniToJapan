@@ -47,8 +47,15 @@ function App() {
   const [roleplay, setRoleplay] = useState([]);
 
   // Roadmap & Survey states
-  const [surveyScore, setSurveyScore] = useState(null);
-  const [surveyRoadmap, setSurveyRoadmap] = useState(null);
+  const [surveyScore, setSurveyScore] = useState(() => {
+    const saved = localStorage.getItem('survey_score');
+    return saved ? parseInt(saved) : null;
+  });
+  const [surveyRoadmap, setSurveyRoadmap] = useState(() => {
+    const saved = localStorage.getItem('survey_roadmap');
+    if (saved) return JSON.parse(saved);
+    return null;
+  });
   
   // Profile Popup Viewer State
   const [profileModalUser, setProfileModalUser] = useState(null);
@@ -188,6 +195,8 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('session_user');
+    localStorage.removeItem('survey_score');
+    localStorage.removeItem('survey_roadmap');
     setCurrentUser(null);
     setActiveView('auth');
     setSurveyScore(null);
@@ -294,6 +303,8 @@ function App() {
   const handleSurveyComplete = (roadmap, score) => {
     setSurveyRoadmap(roadmap);
     setSurveyScore(score);
+    localStorage.setItem('survey_score', score);
+    localStorage.setItem('survey_roadmap', JSON.stringify(roadmap));
     setActiveView('home');
   };
 
@@ -330,7 +341,7 @@ function App() {
         email: matchedUser.email,
         avatar: matchedUser.avatar || '🧑‍💻',
         bio: matchedUser.bio || 'Chưa cập nhật giới thiệu bản thân.',
-        careerGoal: matchedUser.careerGoal || 'Học viên Nihon Career Ready',
+        careerGoal: matchedUser.careerGoal || 'Học viên From Uni to Japan',
         role: matchedUser.isAdmin ? 'Quản trị viên' : matchedUser.isSenpai ? 'Senpai' : 'Học viên'
       });
     } else if (email === 'admin@nihon.com') {
@@ -338,7 +349,7 @@ function App() {
         name: 'Admin Senpai',
         email: 'admin@nihon.com',
         avatar: '🦊',
-        bio: 'Quản trị viên hệ thống Nihon Career Ready. Rất vui được hỗ trợ và định hướng văn hóa cho các bạn Kouhai.',
+        bio: 'Quản trị viên hệ thống From Uni to Japan. Rất vui được hỗ trợ và định hướng văn hóa cho các bạn Kouhai.',
         careerGoal: 'Lãnh đạo Giáo dục / Nhân sự Nhật Bản',
         role: 'Quản trị viên'
       });
@@ -354,7 +365,7 @@ function App() {
         email: email || '',
         avatar: '🧑‍💻',
         bio: 'Chưa cập nhật giới thiệu bản thân.',
-        careerGoal: isSenpaiRole ? 'Senpai / Cố vấn chuyên môn' : 'Học viên Nihon Career Ready',
+        careerGoal: isSenpaiRole ? 'Senpai / Cố vấn chuyên môn' : 'Học viên From Uni to Japan',
         role: fallbackRole || 'Học viên'
       });
     }
@@ -446,7 +457,7 @@ function App() {
           marginTop: '3rem'
         }}>
           <div className="container">
-            <p>© {new Date().getFullYear()} Nihon Career Ready. Thiết kế theo phong cách Wa-Minimalism tối giản Nhật Bản.</p>
+            <p>© {new Date().getFullYear()} From Uni to Japan. Thiết kế theo phong cách Wa-Minimalism tối giản Nhật Bản.</p>
             <p style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>Dành riêng cho sinh viên Việt Nam bước chân vào môi trường chuyên nghiệp.</p>
           </div>
         </footer>

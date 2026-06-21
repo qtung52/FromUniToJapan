@@ -159,31 +159,78 @@ export default function Survey({ onComplete }) {
       <h3 className="question-title">{currentQuestion.question}</h3>
 
       <div className="options-list">
-        {currentQuestion.options.map((opt, oIdx) => (
-          <button
-            key={oIdx}
-            className={`option-button ${selectedOpt === oIdx ? 'selected' : ''}`}
-            onClick={() => handleSelect(oIdx)}
-          >
-            <span style={{
-              display: 'inline-flex',
-              width: '24px',
-              height: '24px',
-              aspectRatio: '1 / 1',
-              flexShrink: 0,
-              borderRadius: '50%',
-              background: selectedOpt === oIdx ? 'rgba(255,255,255,0.2)' : 'var(--jp-blue-light)',
-              color: selectedOpt === oIdx ? '#fff' : 'var(--jp-blue)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              fontWeight: 700,
-              fontSize: '0.8rem'
-            }}>
-              {String.fromCharCode(65 + oIdx)}
-            </span>
-            <span>{opt.text}</span>
-          </button>
-        ))}
+        {currentQuestion.options.map((opt, oIdx) => {
+          let btnStyle = {};
+          let icon = null;
+          let letterBg = 'var(--jp-blue-light)';
+          let letterColor = 'var(--jp-blue)';
+
+          if (selectedOpt !== null) {
+            if (opt.isCorrect) {
+              btnStyle = {
+                borderColor: '#2ecc71',
+                background: 'rgba(46, 204, 113, 0.15)',
+                color: '#1e7e34',
+                fontWeight: 600,
+                cursor: 'default'
+              };
+              letterBg = '#2ecc71';
+              letterColor = '#ffffff';
+              icon = <span style={{ marginLeft: 'auto', color: '#2ecc71', fontWeight: 'bold' }}>✓ Đúng</span>;
+            } else if (selectedOpt === oIdx) {
+              btnStyle = {
+                borderColor: 'var(--jp-red)',
+                background: 'rgba(188, 0, 45, 0.1)',
+                color: 'var(--jp-red)',
+                fontWeight: 600,
+                cursor: 'default'
+              };
+              letterBg = 'var(--jp-red)';
+              letterColor = '#ffffff';
+              icon = <span style={{ marginLeft: 'auto', color: 'var(--jp-red)', fontWeight: 'bold' }}>✗ Sai</span>;
+            } else {
+              btnStyle = {
+                opacity: 0.5,
+                cursor: 'default',
+                pointerEvents: 'none'
+              };
+            }
+          }
+
+          return (
+            <button
+              key={oIdx}
+              className={`option-button ${selectedOpt === oIdx && selectedOpt === null ? 'selected' : ''}`}
+              style={btnStyle}
+              onClick={() => {
+                if (selectedOpt === null) {
+                  handleSelect(oIdx);
+                }
+              }}
+              disabled={selectedOpt !== null}
+            >
+              <span style={{
+                display: 'inline-flex',
+                width: '24px',
+                height: '24px',
+                aspectRatio: '1 / 1',
+                flexShrink: 0,
+                borderRadius: '50%',
+                background: letterBg,
+                color: letterColor,
+                justifyContent: 'center',
+                alignItems: 'center',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                transition: 'all 0.2s'
+              }}>
+                {String.fromCharCode(65 + oIdx)}
+              </span>
+              <span>{opt.text}</span>
+              {icon}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
