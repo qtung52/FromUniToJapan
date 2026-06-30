@@ -8,8 +8,6 @@ export default function Navbar({ activeView, onViewChange, currentUser, onLogout
   const navItems = [
     { id: 'home', label: 'Trang chủ' },
     { id: 'dictionary', label: 'Sổ tay văn hóa' },
-    { id: 'roleplay', label: 'Thử thách' },
-    { id: 'cvbuilder', label: 'Tạo CV (Rirekisho)' },
     { id: 'community', label: 'Senpai - Kouhai' },
   ];
 
@@ -29,8 +27,8 @@ export default function Navbar({ activeView, onViewChange, currentUser, onLogout
     switch (itemId) {
       case 'home': return <Home size={18} className={styles.navLinkIcon} />;
       case 'dictionary': return <BookOpen size={18} className={styles.navLinkIcon} />;
-      case 'roleplay': return <Trophy size={18} className={styles.navLinkIcon} />;
-      case 'cvbuilder': return <FileText size={18} className={styles.navLinkIcon} />;
+
+
       case 'community': return <MessageSquare size={18} className={styles.navLinkIcon} />;
       case 'profile': return <User size={18} className={styles.navLinkIcon} />;
       case 'admin': return <Settings size={18} className={styles.navLinkIcon} />;

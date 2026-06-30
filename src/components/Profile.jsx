@@ -106,6 +106,7 @@ export default function Profile({ currentUser, onUpdateProfile }) {
   const [avatar, setAvatar] = useState(currentUser.avatar || '🧑‍💻');
   const [bio, setBio] = useState(currentUser.bio || '');
   const [careerGoal, setCareerGoal] = useState(currentUser.careerGoal || 'Software Engineer (Japan)');
+  const [selfDeclaredExperience, setSelfDeclaredExperience] = useState(currentUser.selfDeclaredExperience || '');
   const fileInputRef = useRef(null);
 
   // Cropper modal states
@@ -180,7 +181,8 @@ export default function Profile({ currentUser, onUpdateProfile }) {
       name: trimmedDisplayName,
       avatar,
       bio,
-      careerGoal
+      careerGoal,
+      selfDeclaredExperience
     });
     setProfileMsg({ type: 'success', text: 'Cập nhật thông tin cá nhân thành công!' });
     setTimeout(() => setProfileMsg({ type: '', text: '' }), 4000);
@@ -417,6 +419,19 @@ export default function Profile({ currentUser, onUpdateProfile }) {
                 placeholder="Hãy giới thiệu ngắn gọn về bản thân hoặc định hướng công việc của bạn..."
               />
             </div>
+
+            {currentUser.isSenpai && (
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Kinh nghiệm tự khai (Chỉ hiển thị cho Senpai)</label>
+                <input
+                  type="text"
+                  className={styles.formInput}
+                  value={selfDeclaredExperience}
+                  onChange={(e) => setSelfDeclaredExperience(e.target.value)}
+                  placeholder="Ví dụ: 3 năm kinh nghiệm, Tech Lead tại Tokyo..."
+                />
+              </div>
+            )}
 
             <button type="submit" className={styles.btnPrimary}>
               <Save size={18} /> Lưu thông tin hồ sơ

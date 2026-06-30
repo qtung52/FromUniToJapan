@@ -75,19 +75,19 @@ export default function Survey({ onComplete }) {
   const getRoadmap = (scoreValue) => {
     if (scoreValue === 5) {
       return [
-        { title: "Nhiệm vụ 1: Ôn luyện nâng cao các tình huống thực tế (Role-play)", desc: "Bạn đã có nền tảng rất vững chắc. Hãy thử thách các tình huống xử lý khó hơn tại doanh nghiệp." },
-        { title: "Nhiệm vụ 2: Chuẩn bị hồ sơ Rirekisho", desc: "Tạo một bản CV Rirekisho chuẩn Nhật để sẵn sàng nộp cho nhà tuyển dụng." }
+        { title: "Nhiệm vụ 1: Ôn luyện nâng cao các tình huống thực tế (Role-play)", desc: "Bạn đã có nền tảng rất vững chắc. Hãy thử thách các tình huống xử lý khó hơn trong mục Sổ tay & Luyện tập." },
+        { title: "Nhiệm vụ 2: Trao đổi kinh nghiệm cùng Senpai", desc: "Đăng bài hỏi đáp hoặc thảo luận các chủ đề nóng về văn hóa Nhật Bản tại diễn đàn Senpai - Kouhai." }
       ];
     } else if (scoreValue >= 3) {
       return [
         { title: "Nhiệm vụ 1: Luyện tập kỹ năng giao tiếp Hou-Ren-So", desc: "Đọc thêm về phương pháp báo cáo chủ động trong sổ tay văn hóa và làm bài tập tình huống liên quan." },
         { title: "Nhiệm vụ 2: Tìm hiểu quy tắc chỗ ngồi Kamiza/Shimoza", desc: "Xem hướng dẫn sơ đồ chỗ ngồi trong văn phòng và xe ô tô để tránh mắc lỗi khi đi cùng sếp." },
-        { title: "Nhiệm vụ 3: Hoàn thiện hồ sơ ứng tuyển", desc: "Tạo CV tiếng Nhật chuẩn định dạng." }
+        { title: "Nhiệm vụ 3: Tìm hiểu văn hóa phỏng vấn Nhật Bản", desc: "Tìm hiểu về trang phục Recruit Suit chuẩn và tác phong khi bước vào phòng phỏng vấn." }
       ];
     } else {
       return [
         { title: "Nhiệm vụ 1: Sổ tay Ojigi & Meishi", desc: "Đọc kỹ hướng dẫn cách cúi chào theo 3 góc độ và cách cầm/trao danh thiếp chuẩn chỉ." },
-        { title: "Nhiệm vụ 2: Quy tắc giao tiếp cơ bản (Hou-Ren-So)", desc: "Tìm hiểu vì sao người Nhật coi trọng Hou-Ren-So và thực hành qua 3 thử thách tình huống." },
+        { title: "Nhiệm vụ 2: Quy tắc giao tiếp cơ bản (Hou-Ren-So)", desc: "Tìm hiểu vì sao người Nhật coi trọng Hou-Ren-So và thực hành qua các tình huống thực tế." },
         { title: "Nhiệm vụ 3: Tìm hiểu văn hóa phỏng vấn Nhật Bản", desc: "Tìm hiểu về trang phục Recruit Suit chuẩn và cách gõ cửa, chào hỏi khi vào phòng phỏng vấn." }
       ];
     }

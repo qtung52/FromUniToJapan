@@ -4,6 +4,8 @@ import ReactMarkdown from 'react-markdown';
 
 // Groq API key from https://console.groq.com/keys
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
+// Groq Compound model selection: 'groq/compound-mini' (recommended, 3x faster) or 'groq/compound' (complex tasks)
+const GROQ_MODEL = 'groq/compound-mini';
 
 const SYSTEM_PROMPT = `Bạn là AI hỗ trợ tích hợp trên nền tảng NihonBot - nền tảng hỗ trợ người Việt Nam làm việc tại Nhật Bản.
 Nhiệm vụ của bạn:
@@ -116,7 +118,7 @@ export default function ChatBox({ currentUser }) {
   const [isClosing, setIsClosing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [aiMode, setAiMode] = useState(GROQ_API_KEY ? 'groq' : 'offline');
+  const [aiMode, setAiMode] = useState(GROQ_API_KEY ? 'groq' : 'disabled');
   const [isStreaming, setIsStreaming] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState('all');
@@ -128,7 +130,7 @@ export default function ChatBox({ currentUser }) {
 
   const welcomeText = GROQ_API_KEY
     ? 'Chào bạn! Mình là AI Trợ Lý NihonBot, bạn có thể hỏi mình bất cứ điều gì về văn hóa doanh nghiệp Nhật, phỏng vấn, viết CV hay cuộc sống tại Nhật nhé! 🤖'
-    : 'Chào bạn! Mình là AI Trợ Lý NihonBot. Chưa có Groq API key nên mình đang dùng chế độ trả lời mẫu. Hỏi mình về văn hóa Nhật, phỏng vấn, viết CV nhé! 🌸';
+    : '⚠️ Trợ lý AI đang tạm khóa. Vui lòng cấu hình trong file .env để kích hoạt Trợ lý AI NihonBot.';
 
   const [aiMessages, setAiMessages] = useState([
     { id: 1, sender: 'bot', text: welcomeText, time: 'Vừa xong' }
@@ -188,14 +190,19 @@ export default function ChatBox({ currentUser }) {
         },
         signal: abortControllerRef.current.signal,
         body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile', // Updated model since llama3-8b-8192 is decommissioned
+          model: GROQ_MODEL,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             ...apiHistory
           ],
+          compound_custom: {
+            tools: {
+              enabled_tools: ["web_search", "visit_website", "code_interpreter"]
+            }
+          },
           stream: true,
           temperature: 0.7,
-          max_tokens: 400
+          max_tokens: 1000
         })
       });
 
@@ -221,6 +228,7 @@ export default function ChatBox({ currentUser }) {
           }
           try {
             const json = JSON.parse(line.slice(6));
+            console.log("[Groq Compound Stream Chunk]:", json);
             const text = json.choices?.[0]?.delta?.content || '';
             if (text) {
               fullText += text;
@@ -242,6 +250,7 @@ export default function ChatBox({ currentUser }) {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
+    if (!GROQ_API_KEY) return;
     if (!inputValue.trim() || isTyping || isStreaming) return;
 
     const userText = inputValue.trim();
@@ -269,7 +278,7 @@ export default function ChatBox({ currentUser }) {
       setAiMessages(prev => [...prev, {
         id: botMsgId,
         sender: 'bot',
-        text: '',
+        text: '⏳ Đang phân tích và xử lý...',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isStreaming: true
       }]);
@@ -310,7 +319,9 @@ export default function ChatBox({ currentUser }) {
           } : m));
           streamingMsgIdRef.current = null;
           setIsStreaming(false);
-          setAiMode('offline');
+          if (error.message.includes('401')) {
+            setAiMode('offline');
+          }
         }
       );
     } else {
@@ -353,7 +364,7 @@ export default function ChatBox({ currentUser }) {
   };
 
   const getPartnerName = () => {
-    return aiMode === 'groq' ? 'Trợ Lý AI NihonBot' : 'AI Hỗ trợ (Trả lời mẫu)';
+    return GROQ_API_KEY ? 'Trợ Lý AI NihonBot' : 'Trợ lý AI (Đang tắt)';
   };
 
   const getPartnerAvatar = () => {
@@ -361,7 +372,7 @@ export default function ChatBox({ currentUser }) {
   };
 
   const getPartnerSubtitle = () => {
-    return aiMode === 'groq' ? 'Llama 3.3 đang bật' : 'Chế độ trả lời mẫu';
+    return GROQ_API_KEY ? `${GROQ_MODEL} đang bật` : 'Chưa cấu hình API Key';
   };
 
   const getPartnerStatusColor = () => {
@@ -863,10 +874,10 @@ export default function ChatBox({ currentUser }) {
                 {getPartnerName()}
               </h4>
               <span style={{ fontSize: '0.68rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                {aiMode === 'groq' ? (
-                  <><Cpu size={10} /> Llama 3.3 đang bật</>
+                {GROQ_API_KEY ? (
+                  <><Cpu size={10} /> {GROQ_MODEL} đang bật</>
                 ) : (
-                  <><WifiOff size={10} /> Chế độ trả lời mẫu</>
+                  <><WifiOff size={10} /> Trợ lý AI đang tắt</>
                 )}
               </span>
             </div>
@@ -899,7 +910,7 @@ export default function ChatBox({ currentUser }) {
           <>
             {/* Templates Drawer overlaying the messages space */}
             {showTemplates && (
-              <div 
+              <div
                 className="template-drawer"
                 style={{
                   bottom: aiMode !== 'offline' ? '112px' : '76px'
@@ -910,8 +921,8 @@ export default function ChatBox({ currentUser }) {
                     <Sparkles size={15} style={{ color: 'var(--jp-blue)' }} />
                     <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--jp-text)' }}>Gợi ý câu hỏi mẫu</span>
                   </div>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setShowTemplates(false)}
                     style={{ background: 'none', border: 'none', color: 'var(--jp-text-muted)', cursor: 'pointer', padding: '0.2rem' }}
                   >
@@ -1074,9 +1085,10 @@ export default function ChatBox({ currentUser }) {
               <button
                 type="button"
                 className={`btn-sparkles ${showTemplates ? 'active' : ''}`}
-                onClick={() => setShowTemplates(!showTemplates)}
-                title="Xem gợi ý câu hỏi mẫu"
-                style={{ marginBottom: '1px' }} // Small visual alignment tweak
+                onClick={() => GROQ_API_KEY && setShowTemplates(!showTemplates)}
+                disabled={!GROQ_API_KEY}
+                title={GROQ_API_KEY ? "Xem gợi ý câu hỏi mẫu" : "Trợ lý AI đang tắt"}
+                style={{ marginBottom: '1px', opacity: GROQ_API_KEY ? 1 : 0.5, cursor: GROQ_API_KEY ? 'pointer' : 'not-allowed' }}
               >
                 <Sparkles size={16} />
               </button>
@@ -1086,8 +1098,8 @@ export default function ChatBox({ currentUser }) {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isStreaming ? 'AI đang soạn câu trả lời...' : 'Nhập câu hỏi tại đây...'}
-                disabled={isStreaming}
+                placeholder={!GROQ_API_KEY ? 'Trợ lý AI đang tắt (Thiếu API Key)...' : isStreaming ? 'AI đang soạn câu trả lời...' : 'Nhập câu hỏi tại đây...'}
+                disabled={isStreaming || !GROQ_API_KEY}
                 rows={1}
                 className="chat-textarea"
                 onFocus={(e) => {
@@ -1129,6 +1141,7 @@ export default function ChatBox({ currentUser }) {
               ) : (
                 <button
                   type="submit"
+                  disabled={!GROQ_API_KEY}
                   style={{
                     width: '36px',
                     height: '36px',
@@ -1137,19 +1150,20 @@ export default function ChatBox({ currentUser }) {
                     padding: 0,
                     aspectRatio: '1 / 1',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--jp-red) 0%, #c0392b 100%)',
+                    background: GROQ_API_KEY ? 'linear-gradient(135deg, var(--jp-red) 0%, #c0392b 100%)' : '#bdc3c7',
                     color: 'white',
                     border: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer',
+                    cursor: GROQ_API_KEY ? 'pointer' : 'not-allowed',
                     transition: 'transform 0.2s, box-shadow 0.2s',
                     flexShrink: 0,
-                    boxShadow: '0 4px 12px rgba(188, 0, 45, 0.25)',
-                    marginBottom: '2px'
+                    boxShadow: GROQ_API_KEY ? '0 4px 12px rgba(188, 0, 45, 0.25)' : 'none',
+                    marginBottom: '2px',
+                    opacity: GROQ_API_KEY ? 1 : 0.6
                   }}
-                  className="hover-scale"
+                  className={GROQ_API_KEY ? "hover-scale" : ""}
                 >
                   <Send size={15} style={{ color: 'white' }} />
                 </button>
@@ -1170,7 +1184,7 @@ export default function ChatBox({ currentUser }) {
                 color: 'var(--jp-text-muted)'
               }}>
                 <Cpu size={10} />
-                {aiMode === 'groq' ? 'Powered by Llama 3.3' : 'Powered by Gemini API · gemini-1.5-flash'}
+                {aiMode === 'groq' ? `Powered by Groq (${GROQ_MODEL})` : 'Powered by Gemini API · gemini-1.5-flash'}
               </div>
             )}
           </>

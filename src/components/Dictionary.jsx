@@ -1,7 +1,87 @@
-import React, { useState } from 'react';
-import { Check, X, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, X, HelpCircle, Trophy, Star, RefreshCw, Info } from 'lucide-react';
+import { getSharedArray, setSharedArray } from '../lib/sharedStore';
+import { MANNERS_DATA } from '../data/mannersData';
 
-// SVG icons rendered by category — không lưu vào localStorage
+// Confetti-like Canvas Animation component
+function ConfettiCanvas({ active }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    if (!active) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationId;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c'];
+    const particles = Array.from({ length: 150 }).map(() => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      r: Math.random() * 6 + 4,
+      d: Math.random() * canvas.height,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      tilt: Math.random() * 10 - 5,
+      tiltAngleIncremental: Math.random() * 0.07 + 0.02,
+      tiltAngle: 0
+    }));
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((p, idx) => {
+        p.tiltAngle += p.tiltAngleIncremental;
+        p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+        p.x += Math.sin(p.tiltAngle);
+        p.tilt = Math.sin(p.tiltAngle - idx / 3) * 15;
+
+        ctx.beginPath();
+        ctx.lineWidth = p.r;
+        ctx.strokeStyle = p.color;
+        ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+        ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+        ctx.stroke();
+      });
+
+      if (particles.some(p => p.y < canvas.height)) {
+        animationId = requestAnimationFrame(draw);
+      }
+    };
+
+    draw();
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [active]);
+
+  if (!active) return null;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        pointerEvents: 'none',
+        zIndex: 99999
+      }}
+    />
+  );
+}
+
+// CategoryIcon SVG drawing helper
 function CategoryIcon({ category, id }) {
   if (category === 'ojigi') {
     const deg = id?.includes('15') ? 15 : id?.includes('45') ? 45 : 30;
@@ -104,7 +184,6 @@ function CategoryIcon({ category, id }) {
       </svg>
     );
   }
-  // Default (admin-added cards)
   return (
     <svg viewBox="0 0 100 100" width="60" height="60">
       <circle cx="50" cy="50" r="38" fill="none" stroke="var(--jp-red)" strokeWidth="3" />
@@ -113,769 +192,636 @@ function CategoryIcon({ category, id }) {
   );
 }
 
-export const MANNERS_DATA = [
-  {
-    id: 'ojigi-15',
-    category: 'ojigi',
-    titleJp: '会釈 (Meshaku)',
-    titleVi: 'Cúi chào xã giao - 15 độ',
-    frontDesc: 'Cúi chào nhẹ nhàng khi gặp nhau ở hành lang, thang máy hoặc chào hỏi đồng nghiệp cùng cấp.',
-    dos: [
-      'Gập người góc khoảng 15 độ.',
-      'Hai tay đặt tự nhiên bên sườn (nam) hoặc chụm trước đùi (nữ).',
-      'Đứng lại chào rồi đi tiếp, tránh vừa đi vừa cúi đầu.'
-    ],
-    donts: [
-      'Không cúi đầu quá nhanh hoặc quá hời hợt.',
-      'Không vừa đi vừa cúi đầu.',
-      'Không nhìn chằm chằm vào mặt đối phương khi đang cúi.'
-    ]
-  },
-  {
-    id: 'ojigi-30',
-    category: 'ojigi',
-    titleJp: '敬礼 (Keirei)',
-    titleVi: 'Cúi chào kính trọng - 30 độ',
-    frontDesc: 'Chào hỏi cấp trên, khách hàng, đối tác hoặc khi bắt đầu cuộc họp trang trọng.',
-    dos: [
-      'Cúi gập lưng góc khoảng 30 độ.',
-      'Lưng thẳng, cổ thẳng theo trục sống lưng.',
-      'Dành khoảng 1 giây ở vị trí cúi thấp rồi từ từ đứng lên.'
-    ],
-    donts: [
-      'Không cong lưng hoặc ngẩng cổ nhìn lên.',
-      'Không chắp hai tay trước ngực kiểu Phật giáo.',
-      'Không chào quá vội vàng.'
-    ]
-  },
-  {
-    id: 'ojigi-45',
-    category: 'ojigi',
-    titleJp: '最敬礼 (Saikeirei)',
-    titleVi: 'Cúi chào trang trọng nhất - 45 độ',
-    frontDesc: 'Dùng khi muốn bày tỏ lòng biết ơn sâu sắc, xin lỗi chân thành hoặc chào đón bậc bề trên.',
-    dos: [
-      'Cúi gập sâu góc từ 45 đến 90 độ.',
-      'Giữ tư thế cúi sâu trong khoảng 2–3 giây để thể hiện sự chân thành.',
-      'Tập trung toàn bộ ý chí hướng về đối phương.'
-    ],
-    donts: [
-      'Không ngẩng mặt lên quá nhanh.',
-      'Không nói lời xin lỗi/cảm ơn khi đang ở tư thế cúi thấp (nói trước rồi cúi sau).'
-    ]
-  },
-  {
-    id: 'ojigi-5',
-    category: 'ojigi',
-    titleJp: '黙礼 (Mokurei)',
-    titleVi: 'Gật đầu chào nhẹ',
-    frontDesc: 'Chào nhẹ bằng ánh mắt hoặc gật đầu nhẹ khi chạm mặt cấp trên/đồng nghiệp nhiều lần trong ngày.',
-    dos: [
-      'Mắt nhìn đối phương nhẹ nhàng và mỉm cười lịch sự.',
-      'Cúi nhẹ đầu góc khoảng 5 độ trong tư thế thẳng lưng.',
-      'Giữ thái độ tự nhiên, thân thiện chốn văn phòng.'
-    ],
-    donts: [
-      'Không cúi chào quá sâu nhiều lần liên tục (gây phiền toái cho người khác).',
-      'Không làm ngơ, tránh mặt khi gặp đồng nghiệp ở khoảng cách gần.'
-    ]
-  },
-  {
-    id: 'ojigi-general',
-    category: 'ojigi',
-    titleJp: 'お辞儀 (Ojigi)',
-    titleVi: 'Nghệ thuật cúi chào',
-    frontDesc: 'Nét văn hóa đặc trưng thể hiện sự tôn trọng, lòng biết ơn và vị thế xã hội trong giao tiếp Nhật.',
-    dos: [
-      'Giữ thẳng cột sống và cổ, gập người từ phần hông.',
-      'Thực hiện nguyên tắc Chào trước - Cúi sau (Bunri-reishi) trong bối cảnh trang trọng.',
-      'Khép ngón tay thẳng: nam đặt tay dọc sườn, nữ đan tay trước bụng.'
-    ],
-    donts: [
-      'Không vừa đi vừa cúi chào hoặc vừa nói vừa cúi đầu.',
-      'Tránh cúi gập liên tục như gật gà gật gù (gây cảm giác không chân thành).'
-    ]
-  },
-  {
-    id: 'ojigi-chikoku',
-    category: 'ojigi',
-    titleJp: '遅刻連絡 (Chikoku Renraku)',
-    titleVi: 'Báo cáo khi đi muộn',
-    frontDesc: 'Quy tắc ứng xử và liên lạc xin lỗi thành khẩn khi không thể đến văn phòng đúng giờ hẹn.',
-    dos: [
-      'Gọi điện trực tiếp báo cáo cấp trên trước giờ làm ít nhất 10-15 phút.',
-      'Giải thích rõ lý do khách quan (trễ tàu, sự cố...) và ước lượng thời gian tới.',
-      'Cúi chào xin lỗi sếp và đồng nghiệp xung quanh khi bước vào bàn làm việc.'
-    ],
-    donts: [
-      'Tuyệt đối không gửi tin nhắn mạng xã hội (Line/Zalo) hời hợt trừ khi có quy định khác.',
-      'Không đi muộn mà không báo trước hoặc báo sát giờ làm.'
-    ]
-  },
-  {
-    id: 'meishi-1',
-    category: 'meishi',
-    titleJp: '名刺交換 (Meishi Koukan)',
-    titleVi: 'Cách trao danh thiếp',
-    frontDesc: 'Nghi thức bắt buộc khi gặp đối tác kinh doanh lần đầu. Thể hiện sự tôn trọng tuyệt đối.',
-    dos: [
-      'Dùng cả hai tay nâng danh thiếp hướng về phía đối phương.',
-      'Mặt chữ ngửa lên và đầu chữ hướng về đối phương.',
-      'Chủ động đưa thấp hơn vị trí danh thiếp của đối tác để tỏ ý khiêm nhường.'
-    ],
-    donts: [
-      'Không dùng một tay đưa danh thiếp.',
-      'Không che khuất logo hoặc thông tin trên danh thiếp bằng ngón tay.',
-      'Không viết đè lên danh thiếp đã nhận.'
-    ]
-  },
-  {
-    id: 'meishi-2',
-    category: 'meishi',
-    titleJp: '名刺の置き方 (Meishi Okikata)',
-    titleVi: 'Cách đặt danh thiếp trên bàn họp',
-    frontDesc: 'Sau khi nhận danh thiếp, không được cất ngay vào ví mà phải đặt trên bàn họp đúng quy tắc.',
-    dos: [
-      'Đặt danh thiếp lên trên chiếc hộp đựng danh thiếp (Meishiire) của bạn.',
-      'Xếp danh thiếp theo vị trí ngồi của đối tác để dễ nhớ tên.',
-      'Đặt ở phía bên trái vị trí ngồi của bạn.'
-    ],
-    donts: [
-      'Tuyệt đối không đè tài liệu hay tách trà lên trên danh thiếp đối tác.',
-      'Không nghịch danh thiếp hoặc uốn cong danh thiếp trong cuộc họp.'
-    ]
-  },
-  {
-    id: 'meishi-aisatsu',
-    category: 'meishi',
-    titleJp: '挨拶 (Aisatsu)',
-    titleVi: 'Chào hỏi hàng ngày',
-    frontDesc: 'Chào hỏi đầu ngày khi đến văn phòng và trước khi ra về để thể hiện thái độ tôn trọng đồng nghiệp.',
-    dos: [
-      'Chào to, rõ ràng khi đến văn phòng (Ohayou gozaimasu).',
-      'Chào mọi người trước khi ra về (Osaki ni shitsurei shimasu).',
-      'Đáp lại lời chào của người khác một cách thân thiện.'
-    ],
-    donts: [
-      'Không đi làm hoặc ra về lặng lẽ mà không nói lời nào.',
-      'Tránh chào lí nhí trong miệng khiến người khác không nghe rõ.'
-    ]
-  },
-  {
-    id: 'seating-1',
-    category: 'seating',
-    titleJp: '上座と下座 (Kamiza & Shimoza)',
-    titleVi: 'Vị trí ghế ngồi danh dự',
-    frontDesc: 'Quy tắc phân chia chỗ ngồi trong phòng họp, ô tô, thang máy thể hiện thứ bậc lễ nghi.',
-    dos: [
-      'Kamiza (Ghế tôn kính) là ghế ở xa cửa ra vào nhất.',
-      'Shimoza (Ghế thấp kém) là ghế nằm sát cửa, chịu trách nhiệm đón tiếp, gọi món hoặc bấm thang máy.',
-      'Mời khách hàng hoặc sếp lớn vào ngồi ở vị trí Kamiza trước.'
-    ],
-    donts: [
-      'Người trẻ/người mới không được tự ý ngồi vào vị trí trong cùng khi chưa được mời.',
-      'Đừng đứng chắn trước mặt người ngồi ở Kamiza.'
-    ]
-  },
-  {
-    id: 'seating-ousetsu',
-    category: 'seating',
-    titleJp: '応接室 (Ousetsushitsu)',
-    titleVi: 'Ghế ngồi phòng tiếp khách',
-    frontDesc: 'Quy tắc sắp xếp chỗ ngồi khi đón tiếp đối tác/khách hàng tại ghế Sofa phòng khách.',
-    dos: [
-      'Khách hoặc đối tác ngồi ghế Sofa dài (ghế chính) ở vị trí trong cùng xa cửa nhất.',
-      'Chủ nhà hoặc người tiếp tiếp đón ngồi ghế đơn ở phía gần cửa ra vào.',
-      'Luôn nhường ghế thoải mái nhất cho khách hàng tôn quý.'
-    ],
-    donts: [
-      'Không ngồi ghế Sofa dài nếu bạn là bên tiếp đón hoặc cấp bậc thấp hơn.',
-      'Không để khách ngồi ghế gần cửa ra vào nơi ồn ào và nhiều người đi qua.'
-    ]
-  },
-  {
-    id: 'seating-entaku',
-    category: 'seating',
-    titleJp: '円卓 (Entaku)',
-    titleVi: 'Chỗ ngồi bàn ăn tròn',
-    frontDesc: 'Thứ tự vị trí ngồi tại bàn tiệc ẩm thực hoặc phòng họp sử dụng bàn tròn.',
-    dos: [
-      'Khách hàng hoặc sếp lớn ngồi ở vị trí đối diện trực tiếp với cửa ra vào (Kamiza).',
-      'Cấp bậc giảm dần khi vị trí xa dần khỏi Kamiza.',
-      'Người có vị trí thấp nhất (Kouhai/Nhân viên mới) ngồi gần cửa ra vào nhất.'
-    ],
-    donts: [
-      'Không tự ý kéo ghế chọn chỗ ngẫu nhiên khi chưa được chỉ định.',
-      'Không ngồi chiếm vị trí đối diện cửa chính trừ khi được phân công trực tiếp.'
-    ]
-  },
-  {
-    id: 'seating-2',
-    category: 'seating',
-    titleJp: '乗り物の席 (Norimono no Seki)',
-    titleVi: 'Thứ tự trong ô tô & thang máy',
-    frontDesc: 'Khi đi cùng sếp hay khách hàng bằng taxi/ô tô công ty hoặc thang máy, thứ tự rất quan trọng.',
-    dos: [
-      'Trong taxi: Ghế sau bên trái (sau ghế phụ) là ghế danh dự nhất, dành cho khách/sếp.',
-      'Trong thang máy: Người mới phải đứng gần bảng điều khiển để bấm tầng và giữ cửa cho mọi người.',
-      'Mời khách lên xe hoặc vào thang máy trước, bạn lên sau cùng.'
-    ],
-    donts: [
-      'Không tự ý chọn ngồi ghế sau bên trái khi đi cùng cấp trên.',
-      'Không bỏ tay khỏi nút giữ cửa thang máy khi mọi người chưa vào hết.'
-    ]
-  },
-  {
-    id: 'seating-kaigishitsu',
-    category: 'seating',
-    titleJp: '会議室 (Kaigishitsu)',
-    titleVi: 'Chỗ ngồi phòng họp dài',
-    frontDesc: 'Quy tắc sắp xếp vị trí xung quanh bàn họp dài chữ nhật cho thành viên và đối tác.',
-    dos: [
-      'Khách hàng hoặc người có chức vụ cao nhất ngồi ở giữa bàn, xa cửa chính nhất.',
-      'Thành viên thuyết trình hoặc thư ký ngồi gần cửa ra vào để tiện thao tác thiết bị.',
-      'Chủ động đứng dậy nhường ghế trong cùng khi sếp lớn bước vào.'
-    ],
-    donts: [
-      'Không ngồi vào dãy ghế trung tâm trong cùng nếu bạn chỉ là người dự thính có bậc thấp.',
-      'Tránh ngồi chắn tầm nhìn của người chủ trì cuộc họp.'
-    ]
-  },
-  {
-    id: 'seating-taxi',
-    category: 'seating',
-    titleJp: 'タクシー (Takushii)',
-    titleVi: 'Chỗ ngồi xe taxi 4 chỗ',
-    frontDesc: 'Quy tắc phân chia vị thế ngồi trên taxi khi đi công tác cùng đối tác và cấp trên.',
-    dos: [
-      'Mời sếp lớn/khách hàng ngồi ghế sau bên trái tài xế (vị trí an toàn và lịch sự nhất).',
-      'Người có vị trí thấp nhất ngồi ở ghế phụ phía trước bên cạnh tài xế.',
-      'Người ngồi ghế phụ chịu trách nhiệm thanh toán tiền và chỉ đường cho tài xế.'
-    ],
-    donts: [
-      'Không để khách hàng hoặc cấp trên phải ngồi ở ghế phụ phía trước.',
-      'Tránh tranh chấp vị trí ghế ngồi sau khi xe đã đỗ.'
-    ]
-  },
-  {
-    id: 'dresscode-1',
-    category: 'dresscode',
-    titleJp: '身だしなみ (Midashinami)',
-    titleVi: 'Trang phục công sở chuẩn mực',
-    frontDesc: 'Trang phục chỉnh tề (Midashinami) thể hiện tinh thần ngăn nắp, lịch sự và tôn trọng tổ chức.',
-    dos: [
-      'Mặc bộ vest công sở tối màu (Recruit Suit: đen, navy, xám đậm).',
-      'Ủi phẳng áo sơ mi trắng, cài kín nút cổ.',
-      'Tóc gọn gàng, móng tay cắt ngắn sạch sẽ, nước hoa nhẹ hoặc không dùng.'
-    ],
-    donts: [
-      'Không đi giày bẩn, giày da sờn rách.',
-      'Không đeo đồ trang sức quá lòe loẹt, nổi bật.',
-      'Tránh nhuộm tóc màu quá sáng khi phỏng vấn hoặc mới vào công ty.'
-    ]
-  },
-  {
-    id: 'dresscode-coolbiz',
-    category: 'dresscode',
-    titleJp: 'クールビズ (Cool Biz)',
-    titleVi: 'Trang phục mùa hè Cool Biz',
-    frontDesc: 'Quy chuẩn trang phục công sở Nhật Bản từ tháng 5 đến tháng 10 nhằm tiết kiệm năng lượng làm mát.',
-    dos: [
-      'Cho phép cởi bỏ cà vạt và áo khoác vest ngoài khi làm việc tại văn phòng.',
-      'Mặc áo sơ mi cộc tay lịch sự hoặc áo polo trơn màu trung tính.',
-      'Quần âu dài mỏng thoáng mát phẳng phiu.'
-    ],
-    donts: [
-      'Tuyệt đối không mặc áo thun ba lỗ, quần lửng hay đi dép lê tại nơi làm việc.',
-      'Tránh áo sơ mi quá mỏng, hở hang hoặc có họa tiết sặc sỡ.'
-    ]
-  },
-  {
-    id: 'dresscode-officecasual',
-    category: 'dresscode',
-    titleJp: 'オフィスカジュアル (Office Casual)',
-    titleVi: 'Phong cách Office Casual',
-    frontDesc: 'Quy chuẩn trang phục tự do thoải mái hơn nhưng vẫn giữ được tính lịch sự tại nơi công sở.',
-    dos: [
-      'Phối hợp áo thun trơn màu nhã nhặn kèm áo khoác Blazer ngoài.',
-      'Mặc quần Kaki dài phẳng hoặc quần Chino trung tính dáng thanh lịch.',
-      'Sử dụng giày Loafer da hoặc sneaker phong cách tối giản màu tối sạch sẽ.'
-    ],
-    donts: [
-      'Không mặc quần Jeans rách rưới phá cách, áo phông in hình lòe loẹt.',
-      'Tránh giày thể thao chạy bộ hầm hố, màu neon chói mắt.'
-    ]
-  },
-  {
-    id: 'dresscode-2',
-    category: 'dresscode',
-    titleJp: 'ビジネスカジュアル (Business Casual)',
-    titleVi: 'Trang phục Business Casual',
-    frontDesc: 'Nhiều công ty Nhật hiện đại cho phép mặc Business Casual nhưng vẫn cần giữ chuẩn mực nhất định.',
-    dos: [
-      'Áo sơ mi có cổ, quần âu hoặc chân váy công sở dưới đầu gối.',
-      'Giày da hoặc giày lịch sự, gọn gàng, sạch sẽ.',
-      'Màu sắc trung tính: be, trắng, xanh nhạt, xám.'
-    ],
-    donts: [
-      'Không mặc Jeans, áo thun in hình, giày thể thao khi không được phép.',
-      'Không để lộ vai hoặc mặc váy quá ngắn trong giờ làm việc.',
-      'Không mặc quần áo nhàu nát, bẩn dù là Business Casual.'
-    ]
-  },
-  {
-    id: 'meishi-nomikai',
-    category: 'nomikai',
-    titleJp: '飲み会 (Nomikai)',
-    titleVi: 'Văn hóa tiệc rượu giao lưu',
-    frontDesc: 'Quy tắc ứng xử và giao lưu ăn uống sau giờ làm để gắn kết tình đồng nghiệp chốn công sở.',
-    dos: [
-      'Dùng cả hai tay rót bia/rượu cho sếp hoặc đồng nghiệp lớn tuổi hơn.',
-      'Để miệng ly cụng của bạn thấp hơn miệng ly đối phương khi nâng ly.',
-      'Chú ý quan sát và chủ động gọi thêm đồ uống khi ly của người khác gần cạn.'
-    ],
-    donts: [
-      'Tuyệt đối không tự rót rượu cho bản thân mình trước.',
-      'Tránh nói quá nhiều về công việc gây căng thẳng trừ khi được sếp chủ động khơi gợi.'
-    ]
-  },
-  {
-    id: 'meishi-mail',
-    category: 'email_phone',
-    titleJp: 'ビジネスメール (Business Mail)',
-    titleVi: 'Viết email công sở chuẩn',
-    frontDesc: 'Quy tắc trao đổi thư điện tử chuyên nghiệp, có cấu trúc rõ ràng và kính ngữ chuẩn mực.',
-    dos: [
-      'Ghi tiêu đề ngắn gọn, bắt đầu bằng lời chào tiêu chuẩn (Osewa ni natte orimasu).',
-      'Viết câu ngắn, phân đoạn rõ ràng bằng cách xuống dòng hợp lý.',
-      'Luôn kiểm tra kỹ các file đính kèm và ký tên đầy đủ ở cuối thư.'
-    ],
-    donts: [
-      'Không gửi email trống tiêu đề hoặc viết nội dung quá suồng sã.',
-      'Tránh viết sai tên đối tác hoặc tên công ty của họ.'
-    ]
-  },
-  {
-    id: 'meishi-3',
-    category: 'email_phone',
-    titleJp: '電話応対 (Denwa Outai)',
-    titleVi: 'Nhận điện thoại công sở',
-    frontDesc: 'Quy tắc trả lời điện thoại chuyên nghiệp khi đối tác/khách hàng gọi tới văn phòng.',
-    dos: [
-      'Nhấc máy nhanh trước tiếng chuông thứ 3.',
-      'Nói lời chào tiêu chuẩn và xác nhận tên công ty/bộ phận rõ ràng.',
-      'Ghi chép thông tin người gọi và cúp máy sau khi đối phương cúp.'
-    ],
-    donts: [
-      'Không để chuông reo quá 3 lần mà không xin lỗi vì sự chậm trễ.',
-      'Không cúp máy trước đối tác.',
-      'Không ăn uống hoặc nhai kẹo khi nghe điện thoại.'
-    ]
-  },
-  {
-    id: 'dresscode-temiyage',
-    category: 'omiyage',
-    titleJp: '手土産 (Temiyage)',
-    titleVi: 'Văn hóa quà tặng đối tác',
-    frontDesc: 'Nghi thức trao quà tặng đặc sản địa phương khi đi công tác về hoặc đến thăm đối tác.',
-    dos: [
-      'Chọn các món bánh kẹo đặc sản đóng hộp lịch sự, chia phần sẵn dễ ăn.',
-      'Trao bằng cả hai tay kèm câu nói nhún nhường biểu đạt lòng thành.',
-      'Đưa quà sau khi cuộc chào hỏi xã giao ban đầu kết thúc.'
-    ],
-    donts: [
-      'Không tặng quà có số lượng 4 hoặc 9 vì đây là số không may mắn.',
-      'Tránh tặng quà quá đắt tiền gây cảm giác mang ơn khó xử cho đối phương.'
-    ]
-  },
-  {
-    id: 'meishi-hourenso',
-    category: 'workrules',
-    titleJp: '報連相 (Hou-Ren-So)',
-    titleVi: 'Báo cáo - Liên lạc - Thảo luận',
-    frontDesc: 'Quy tắc giao tiếp cốt lõi để duy trì luồng thông tin thông suốt và hiệu quả trong doanh nghiệp Nhật.',
-    dos: [
-      'Báo cáo (Houkoku) kịp thời tiến độ công việc kể cả khi chưa hoàn thành.',
-      'Liên lạc (Renraku) ngay lập tức khi xảy ra sự cố hay thay đổi kế hoạch.',
-      'Thảo luận (Soudan) để xin lời khuyên của sếp hoặc đồng nghiệp khi gặp bế tắc.'
-    ],
-    donts: [
-      'Không tự ý giấu lỗi sai hoặc tự giải quyết sự cố lớn mà không báo cáo.',
-      'Không trì hoãn việc báo cáo các thông tin khẩn cấp.'
-    ]
-  },
-  {
-    id: 'dresscode-5s',
-    category: 'workrules',
-    titleJp: '整理整頓 (Seiri Seiton)',
-    titleVi: 'Bàn làm việc ngăn nắp (5S)',
-    frontDesc: 'Quy tắc dọn dẹp vệ sinh không gian làm việc và bảo mật thông tin tài liệu tại công ty.',
-    dos: [
-      'Dọn dẹp mặt bàn làm việc sạch sẽ, gọn gàng trước khi ra về.',
-      'Khóa tài liệu quan trọng vào tủ hồ sơ riêng biệt.',
-      'Luôn khóa màn hình máy tính cá nhân khi rời khỏi vị trí ngồi.'
-    ],
-    donts: [
-      'Không để tài liệu bừa bãi trên bàn qua đêm.',
-      'Tránh để lộ thông tin mật ra ngoài do không dọn dẹp bàn ghế.'
-    ]
-  },
-  {
-    id: 'nomikai-okaikei',
-    category: 'nomikai',
-    titleJp: 'お会計 (Okaikei)',
-    titleVi: 'Ứng xử khi thanh toán',
-    frontDesc: 'Cách xử lý tinh tế khi thanh toán hóa đơn sau bữa tiệc công ty hoặc tiệc với đối tác.',
-    dos: [
-      'Chờ cấp trên hoặc đối tác thanh toán trước rồi hỏi ý kiến đóng góp sau.',
-      'Cố gắng chuẩn bị sẵn tiền lẻ hoặc tiền chẵn để chia nhanh nếu là tiệc chia đều (Waribashi).',
-      'Chủ động nói lời cảm ơn (Gochisousama deshita) ngay sau khi được mời.'
-    ],
-    donts: [
-      'Không giành trả tiền trước mặt khách hàng/đối tác khi mình là bên được mời.',
-      'Không đứng kỳ kèo, tính toán tiền quá chi tiết ngay tại quầy thanh toán của nhà hàng.'
-    ]
-  },
-  {
-    id: 'nomikai-chuumon',
-    category: 'nomikai',
-    titleJp: '注文 (Chuumon)',
-    titleVi: 'Quy tắc gọi món ăn',
-    frontDesc: 'Cách lựa chọn món ăn khôn khéo và lịch sự khi đi ăn uống cùng sếp và đồng nghiệp.',
-    dos: [
-      'Nhường quyền chọn món chính cho khách hàng hoặc sếp lớn trước.',
-      'Chọn các món dễ chia phần, dễ ăn, tránh các món quá cay hoặc quá mùi.',
-      'Hỏi trước về dị ứng hoặc sở thích ăn uống của mọi người trước khi gọi món.'
-    ],
-    donts: [
-      'Không tự ý gọi các món quá đắt đỏ khi người khác chiêu đãi.',
-      'Tránh gọi món ăn quá chậm làm mất thời gian của cả bàn.'
-    ]
-  },
-  {
-    id: 'nomikai-orei',
-    category: 'nomikai',
-    titleJp: 'お礼のメール (Orei no Mail)',
-    titleVi: 'Email cảm ơn sau bữa tiệc',
-    frontDesc: 'Quy tắc bắt buộc gửi thư cảm ơn sếp hoặc đối tác sau khi kết thúc bữa tiệc giao lưu.',
-    dos: [
-      'Gửi email hoặc tin nhắn cảm ơn vào sáng sớm ngày hôm sau trước khi bắt đầu làm việc.',
-      'Bày tỏ sự biết ơn cụ thể về món ăn ngon hoặc cuộc trò chuyện thú vị trong bữa tiệc.',
-      'Thể hiện sự nhiệt huyết muốn cống hiến hơn nữa trong công việc sắp tới.'
-    ],
-    donts: [
-      'Không trì hoãn việc gửi lời cảm ơn quá 24 giờ.',
-      'Tránh viết email cảm ơn quá ngắn hoặc quá suồng sã.'
-    ]
-  },
-  {
-    id: 'email-toritsugi',
-    category: 'email_phone',
-    titleJp: '電話取り次ぎ (Denwa Toritsugi)',
-    titleVi: 'Quy trình chuyển máy điện thoại',
-    frontDesc: 'Cách chuyển tiếp cuộc gọi điện thoại cho đồng nghiệp hoặc cấp trên một cách chuyên nghiệp.',
-    dos: [
-      'Yêu cầu người gọi chờ giây lát (Shoushou omachi kudasai) và nhấn nút giữ máy (Hold).',
-      'Xác nhận rõ tên người gọi và công ty của họ trước khi chuyển máy.',
-      'Thông báo ngắn gọn cho người nhận về danh tính người gọi trước khi nối máy.'
-    ],
-    donts: [
-      'Không hét to gọi đồng nghiệp trong văn phòng mà không nhấn nút giữ máy.',
-      'Tuyệt đối không cúp máy nhầm hoặc làm mất cuộc gọi của khách hàng.'
-    ]
-  },
-  {
-    id: 'email-kinkyuu',
-    category: 'email_phone',
-    titleJp: '緊急連絡 (Kinkyuu Renraku)',
-    titleVi: 'Liên lạc khẩn cấp',
-    frontDesc: 'Quy tắc gửi thông báo khẩn cấp khi gặp sự cố nghiêm trọng hoặc xin nghỉ ốm đột xuất.',
-    dos: [
-      'Gọi điện trực tiếp cho người quản lý trực tiếp thay vì chỉ gửi email/tin nhắn.',
-      'Nêu rõ lý do ngắn gọn và bàn giao công việc dang dở khẩn cấp nếu có.',
-      'Cập nhật tình hình thường xuyên cho đến khi sự cố được khắc phục.'
-    ],
-    donts: [
-      'Tuyệt đối không tự ý nghỉ làm mà không báo cáo kịp thời.',
-      'Không giấu giếm thông tin khi xảy ra sự cố lớn làm ảnh hưởng đến dự án.'
-    ]
-  },
-  {
-    id: 'email-tenpu',
-    category: 'email_phone',
-    titleJp: '添付ファイル (Tenpu Fairu)',
-    titleVi: 'Quy tắc gửi file đính kèm',
-    frontDesc: 'Quy chuẩn gửi tệp tin qua email công sở đảm bảo an toàn thông tin và tính chuyên nghiệp.',
-    dos: [
-      'Nén các file dung lượng lớn và đặt mật khẩu bảo mật (zip/pdf protection).',
-      'Gửi mật khẩu giải nén trong một email riêng biệt để tránh rò rỉ dữ liệu.',
-      'Kiểm tra kỹ dung lượng file và định dạng trước khi gửi.'
-    ],
-    donts: [
-      'Không gửi email chứa file đính kèm quá nặng trực tiếp mà không báo trước.',
-      'Tránh quên đính kèm file khi email đã nhắc đến nội dung đính kèm.'
-    ]
-  },
-  {
-    id: 'omiyage-shuchou',
-    category: 'omiyage',
-    titleJp: '出張連絡 (Shuchou Renraku)',
-    titleVi: 'Liên lạc và chuẩn bị công tác',
-    frontDesc: 'Lập kế hoạch, chuẩn bị hồ sơ và giữ liên lạc thông suốt trong suốt chuyến công tác xa.',
-    dos: [
-      'Lập lịch trình chi tiết và gửi cho người quản lý trước khi đi.',
-      'Báo cáo tình hình công việc hàng ngày hoặc ngay sau khi kết thúc các buổi họp quan trọng.',
-      'Chuẩn bị đầy đủ tài liệu, danh thiếp và quà tặng đối tác nếu cần.'
-    ],
-    donts: [
-      'Không mất liên lạc hoặc không trả lời email khẩn cấp từ văn phòng chính khi đang đi công tác.',
-      'Không chi tiêu cá nhân vượt quá định mức công tác phí cho phép.'
-    ]
-  },
-  {
-    id: 'omiyage-kubarikata',
-    category: 'omiyage',
-    titleJp: 'お土産の配り方 (Omiyage no Kubarikata)',
-    titleVi: 'Cách chia quà lưu niệm',
-    frontDesc: 'Quy tắc tặng quà lưu niệm, đặc sản địa phương cho đồng nghiệp sau chuyến đi du lịch hoặc công tác.',
-    dos: [
-      'Chọn mua quà đã được chia thành từng gói nhỏ tiện lợi để mọi người dễ lấy.',
-      'Đặt quà ở khu vực sinh hoạt chung hoặc đến từng bàn để gửi tặng đồng nghiệp.',
-      'Đính kèm lời cảm ơn vì mọi người đã hỗ trợ công việc khi mình vắng mặt.'
-    ],
-    donts: [
-      'Không mua quà quá hạn chế số lượng khiến người có người không.',
-      'Tránh mua đồ ăn có mùi quá nồng hoặc hạn sử dụng quá ngắn.'
-    ]
-  },
-  {
-    id: 'omiyage-kangei',
-    category: 'omiyage',
-    titleJp: '歓迎の礼 (Kangei no Rei)',
-    titleVi: 'Đón tiếp đối tác đến văn phòng',
-    frontDesc: 'Nghi thức chuẩn bị và tiếp đón khách hàng hoặc đối tác từ nơi khác đến thăm công ty.',
-    dos: [
-      'Dọn dẹp phòng họp sạch sẽ, chuẩn bị sẵn nước uống và tài liệu trước khi khách đến.',
-      'Chờ sẵn ở sảnh đón tiếp trước giờ hẹn 5-10 phút để đón khách.',
-      'Hướng dẫn khách di chuyển và nhường lối đi ưu tiên cho khách.'
-    ],
-    donts: [
-      'Không để khách phải tự tìm phòng họp hoặc tự rót nước uống.',
-      'Không tỏ thái độ thờ ơ, thiếu đón tiếp chu đáo khi khách mới bước vào sảnh.'
-    ]
-  },
-  {
-    id: 'workrules-shinchoku',
-    category: 'workrules',
-    titleJp: '進捗報告 (Shinchoku Houkoku)',
-    titleVi: 'Báo cáo tiến độ công việc',
-    frontDesc: 'Cách báo cáo tiến độ công việc định kỳ hoặc khi gặp sự cố khó khăn để sếp nắm bắt tình hình.',
-    dos: [
-      'Báo cáo theo định dạng định lượng (phần trăm hoàn thành, số lượng cụ thể).',
-      'Chủ động báo cáo sớm khi nhận thấy dự án có nguy cơ chậm tiến độ (Bad news first).',
-      'Đề xuất giải pháp khắc phục đi kèm khi báo cáo khó khăn.'
-    ],
-    donts: [
-      'Không im lặng hoặc giấu thông tin cho đến sát deadline mới báo cáo không kịp.',
-      'Tránh báo cáo chung chung như đang tiến hành ổn mà không có số liệu chứng minh.'
-    ]
-  },
-  {
-    id: 'workrules-gofunmae',
-    category: 'workrules',
-    titleJp: '5分前の行動 (Gofun Mae no Koudou)',
-    titleVi: 'Quy tắc 5 phút trước giờ hẹn',
-    frontDesc: 'Tác phong quản lý thời gian vàng ngọc, luôn có mặt trước giờ hẹn ít nhất 5 phút.',
-    dos: [
-      'Đến địa điểm họp hoặc chuẩn bị cuộc gọi trực tuyến trước giờ bắt đầu 5 phút.',
-      'Hoàn tất việc chuẩn bị tài liệu, công cụ làm việc trước khi cuộc họp chính thức bắt đầu.',
-      'Chủ động thông báo nếu nhận thấy có nguy cơ đến muộn dù chỉ 1-2 phút.'
-    ],
-    donts: [
-      'Không bước vào phòng họp đúng giờ khít hoặc trễ giờ làm gián đoạn mọi người.',
-      'Tránh bắt đầu chuẩn bị tài liệu khi cuộc họp đã diễn ra.'
-    ]
-  },
-  {
-    id: 'workrules-kimitsu',
-    category: 'workrules',
-    titleJp: '機密処理 (Kimitsu Shori)',
-    titleVi: 'Xử lý tài liệu bảo mật',
-    frontDesc: 'Quy tắc tiêu hủy và bảo mật thông tin trên giấy tờ in ấn chốn công sở.',
-    dos: [
-      'Sử dụng máy hủy tài liệu (Shredder) cho tất cả các giấy tờ chứa thông tin khách hàng hoặc dự án.',
-      'Úp mặt tài liệu xuống khi để trên bàn làm việc hoặc máy in.',
-      'Kiểm tra kỹ khay máy in để tránh bỏ quên tài liệu quan trọng.'
-    ],
-    donts: [
-      'Không vứt tài liệu chứa thông tin nội bộ hoặc khách hàng trực tiếp vào thùng rác thường.',
-      'Tuyệt đối không chụp ảnh hoặc mang tài liệu mật ra ngoài văn phòng mà chưa được phép.'
-    ]
-  },
-  {
-    id: 'nomikai-sekijun',
-    category: 'nomikai',
-    titleJp: '席順 (Sekijun)',
-    titleVi: 'Vị trí ngồi tiệc rượu',
-    frontDesc: 'Quy tắc phân chia chỗ ngồi trong bàn tiệc rượu dựa trên cấp bậc.',
-    dos: [
-      'Mời sếp lớn ngồi ở Kamiza (thường là góc trong cùng, xa lối đi/cửa chính).',
-      'Ngồi ở vị trí Shimoza (gần cửa hoặc lối đi nhất) để tiện phục vụ, gọi món.',
-      'Giữ tư thế lịch sự, không tự ý chiếm vị trí trung tâm bàn tiệc.'
-    ],
-    donts: [
-      'Không tự ý chọn chỗ ngồi ngẫu nhiên khi chưa được hướng dẫn.',
-      'Tránh ngồi chắn lối đi của nhân viên phục vụ tiệc.'
-    ]
-  },
-  {
-    id: 'nomikai-kanpai',
-    category: 'nomikai',
-    titleJp: '乾杯 (Kanpai)',
-    titleVi: 'Nghi thức nâng ly',
-    frontDesc: 'Nghi thức cụng ly lịch sự trong tiệc công sở Nhật Bản.',
-    dos: [
-      'Đợi người có cấp bậc cao nhất phát biểu và hô nâng ly (Kanpai) trước.',
-      'Giữ ly thấp hơn ly của cấp trên hoặc đối tác khi cụng ly.',
-      'Dùng cả hai tay để nâng ly thể hiện sự kính trọng.'
-    ],
-    donts: [
-      'Không uống trước khi mọi người cùng nâng ly.',
-      'Tránh chạm ly quá mạnh gây vỡ hoặc làm đổ bia rượu.'
-    ]
-  },
-  {
-    id: 'email-kenmei',
-    category: 'email_phone',
-    titleJp: '件名 (Kenmei)',
-    titleVi: 'Tiêu đề email công sở',
-    frontDesc: 'Cách viết tiêu đề email ngắn gọn, rõ ràng và đúng quy chuẩn công sở Nhật.',
-    dos: [
-      'Viết tiêu đề rõ ràng, chứa tên công ty và tên người gửi ở trong dấu ngoặc vuông (VD: [Antigravity] Báo cáo tiến độ).',
-      'Nêu rõ nội dung chính của email ngay trên dòng tiêu đề.',
-      'Để từ khóa như [Khẩn cấp] hoặc [Thông báo] nếu cần thu hút sự chú ý.'
-    ],
-    donts: [
-      'Không gửi email trống tiêu đề hoặc viết tiêu đề quá mơ hồ như "Xin chào" hay "Gửi sếp".',
-      'Không viết tiêu đề quá dài dòng quá 30 ký tự.'
-    ]
-  },
-  {
-    id: 'email-kirikata',
-    category: 'email_phone',
-    titleJp: '電話の切り方 (Denwa no Kirikata)',
-    titleVi: 'Cách tắt điện thoại',
-    frontDesc: 'Quy tắc tắt máy sau khi kết thúc cuộc gọi điện thoại với khách hàng hoặc cấp trên.',
-    dos: [
-      'Đợi khách hàng hoặc đối tác cúp máy trước rồi mới nhẹ nhàng đặt ống nghe xuống.',
-      'Nói lời chào kết thúc rõ ràng (Shitsurei itashimasu) trước khi cúp máy.',
-      'Nhấn giữ nút ngắt cuộc gọi bằng tay nhẹ nhàng thay vì dập mạnh ống nghe.'
-    ],
-    donts: [
-      'Không đột ngột cúp máy khi đối phương chưa dứt lời hoặc chưa cúp máy.',
-      'Tuyệt đối không dập mạnh ống nghe điện thoại tạo ra tiếng ồn khó chịu.'
-    ]
-  },
-  {
-    id: 'omiyage-houkokusho',
-    category: 'omiyage',
-    titleJp: '出張報告書 (Shuchou Houkokusho)',
-    titleVi: 'Báo cáo sau chuyến công tác',
-    frontDesc: 'Cách viết và gửi báo cáo kết quả sau khi hoàn thành chuyến đi công tác xa.',
-    dos: [
-      'Gửi báo cáo công tác bằng văn bản cho sếp trong vòng 1-2 ngày sau khi trở về.',
-      'Tóm tắt rõ ràng các kết quả đạt được, chi phí phát sinh và các bước tiếp theo.',
-      'Đính kèm hóa đơn chi phí hợp lệ để làm thủ tục thanh toán.'
-    ],
-    donts: [
-      'Không trì hoãn việc gửi báo cáo quá một tuần sau chuyến đi.',
-      'Tránh viết báo cáo quá chung chung mà không có số liệu cụ thể.'
-    ]
-  },
-  {
-    id: 'omiyage-noshigami',
-    category: 'omiyage',
-    titleJp: 'のし紙 (Noshigami)',
-    titleVi: 'Giấy bọc quà truyền thống',
-    frontDesc: 'Quy tắc sử dụng giấy bọc quà Noshigami khi tặng quà trang trọng cho đối tác.',
-    dos: [
-      'Sử dụng giấy Noshigami có thắt nơ Mizuhiki phù hợp với từng dịp (chúc mừng, chia buồn...).',
-      'Viết tên công ty và tên người tặng rõ ràng trên phần dưới của giấy Noshigami.',
-      'Đảm bảo giấy bọc quà phẳng phiu, sạch sẽ trước khi mang đi tặng.'
-    ],
-    donts: [
-      'Không dùng nhầm loại nơ Mizuhiki (VD: dùng nơ thắt nút chết cho dịp đám cưới nhưng lại mang đi tặng khai trương).',
-      'Tránh viết sai chính tả tên đối tác trên giấy bọc quà.'
-    ]
-  },
-  {
-    id: 'workrules-schedule',
-    category: 'workrules',
-    titleJp: 'スケジュール管理 (Schedule Kanri)',
-    titleVi: 'Quản lý lịch trình',
-    frontDesc: 'Cách quản lý thời gian và đăng ký lịch làm việc chung với phòng ban.',
-    dos: [
-      'Cập nhật lịch trình của mình lên lịch chung của nhóm (Google Calendar/Outlook) để mọi người theo dõi.',
-      'Đăng ký trước lịch nghỉ phép hoặc đi ra ngoài văn phòng ít nhất vài ngày.',
-      'Kiểm tra lịch làm việc của đồng nghiệp trước khi lên lịch họp chung.'
-    ],
-    donts: [
-      'Không tự ý thay đổi lịch họp đột xuất mà không thông báo cho các bên liên quan.',
-      'Không để lịch trình cá nhân trống trơn khiến mọi người khó liên lạc khi có việc gấp.'
-    ]
-  },
-  {
-    id: 'workrules-seiri',
-    category: 'workrules',
-    titleJp: 'デスク周りの整理 (Desk Mawari no Seiri)',
-    titleVi: 'Sắp xếp bàn làm việc',
-    frontDesc: 'Quy tắc giữ sạch sẽ và ngăn nắp khu vực làm việc cá nhân chốn văn phòng.',
-    dos: [
-      'Chỉ để những tài liệu và đồ dùng đang cần thiết trên mặt bàn làm việc.',
-      'Dọn dẹp mặt bàn sạch sẽ trước khi ra về vào cuối ngày (Quy tắc bàn sạch).',
-      'Sắp xếp dây cáp, bút viết ngăn nắp vào khay đựng.'
-    ],
-    donts: [
-      'Không để cốc cafe uống dở hoặc rác cá nhân trên bàn qua đêm.',
-      'Tránh dán quá nhiều giấy note đè lên nhau trên viền màn hình máy tính.'
-    ]
-  }
-];
-
 export default function Dictionary({ dictionary = MANNERS_DATA }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [flippedCards, setFlippedCards] = useState({});
+  const [practiceItem, setPracticeItem] = useState(null);
+  const [currentScenarioIdx, setCurrentScenarioIdx] = useState(0);
+  const [selectedOptionIdx, setSelectedOptionIdx] = useState(null);
+  const [quizScore, setQuizScore] = useState(0);
+  const [isQuizFinished, setIsQuizFinished] = useState(false);
+
+  const [cardsFlipped, setCardsFlipped] = useState(() => {
+    try {
+      const val = JSON.parse(localStorage.getItem('nihon_cards_flipped'));
+      return Array.isArray(val) ? Array.from(new Set(val)) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [challengesCompleted, setChallengesCompleted] = useState(() => {
+    try {
+      const val = JSON.parse(localStorage.getItem('nihon_challenges_completed'));
+      return Array.isArray(val) ? val : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [bookmarkedCards, setBookmarkedCards] = useState(() => {
+    try {
+      const val = JSON.parse(localStorage.getItem('nihon_bookmarked_cards'));
+      return Array.isArray(val) ? val : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [showOnlyBookmarked, setShowOnlyBookmarked] = useState(false);
+  const [dbUsersList, setDbUsersList] = useState([]);
+  const [showLeaderboardInfo, setShowLeaderboardInfo] = useState(false);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [isLeaderboardClosing, setIsLeaderboardClosing] = useState(false);
+  const [showBadgesModal, setShowBadgesModal] = useState(false);
+  const [isBadgesClosing, setIsBadgesClosing] = useState(false);
+  const [cardQuizStates, setCardQuizStates] = useState({});
+
+  const handleCloseLeaderboard = () => {
+    setIsLeaderboardClosing(true);
+    setTimeout(() => {
+      setShowLeaderboardModal(false);
+      setIsLeaderboardClosing(false);
+    }, 250);
+  };
+
+  const handleCloseBadgesModal = () => {
+    setIsBadgesClosing(true);
+    setTimeout(() => {
+      setShowBadgesModal(false);
+      setIsBadgesClosing(false);
+    }, 250);
+  };
+
+
+  const syncScoreToSharedStore = async (newScore, completedList) => {
+    try {
+      const session = JSON.parse(localStorage.getItem('session_user'));
+      if (!session || !session.email) return;
+
+      const users = await getSharedArray('users', []);
+      const nextUsers = users.map(u =>
+        (u.email && u.email.trim().toLowerCase() === session.email.trim().toLowerCase())
+          ? { ...u, challengeScore: newScore, challengesCompleted: completedList }
+          : u
+      );
+      await setSharedArray('users', nextUsers);
+      setDbUsersList(nextUsers);
+    } catch (e) {
+      console.warn("Failed to sync score to shared store:", e);
+    }
+  };
+
+  const syncFlippedToSharedStore = async (flippedList) => {
+    try {
+      const session = JSON.parse(localStorage.getItem('session_user'));
+      if (!session || !session.email) return;
+
+      const users = await getSharedArray('users', []);
+      const nextUsers = users.map(u =>
+        (u.email && u.email.trim().toLowerCase() === session.email.trim().toLowerCase())
+          ? { ...u, flippedCards: flippedList }
+          : u
+      );
+      await setSharedArray('users', nextUsers);
+      setDbUsersList(nextUsers);
+    } catch (e) {
+      console.warn("Failed to sync flipped cards to shared store:", e);
+    }
+  };
+
+  // Sync with Supabase on mount
+  useEffect(() => {
+    const loadSharedUsers = async () => {
+      try {
+        const users = await getSharedArray('users', []);
+        setDbUsersList(users);
+
+        const session = JSON.parse(localStorage.getItem('session_user'));
+        if (session && session.email && users.length > 0) {
+          const userDb = users.find(u => u.email && u.email.trim().toLowerCase() === session.email.trim().toLowerCase());
+          if (userDb) {
+            if (Array.isArray(userDb.flippedCards)) {
+              setCardsFlipped(prev => {
+                const merged = Array.from(new Set([...prev, ...userDb.flippedCards]));
+                if (merged.length > userDb.flippedCards.length) {
+                  syncFlippedToSharedStore(merged);
+                }
+                return merged;
+              });
+            }
+            if (Array.isArray(userDb.challengesCompleted)) {
+              setChallengesCompleted(prev => {
+                if (prev.length === 0) {
+                  return userDb.challengesCompleted;
+                } else if (prev.length > userDb.challengesCompleted.length) {
+                  const newScore = prev.reduce((acc, c) => acc + c.score, 0);
+                  syncScoreToSharedStore(newScore, prev);
+                  return prev;
+                } else {
+                  return userDb.challengesCompleted;
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load shared users:", e);
+      }
+    };
+    loadSharedUsers();
+  }, []);
+
+  const getCardGroupCategory = (item) => {
+    const id = item?.id || '';
+    const cat = item?.category || '';
+
+    if (id.startsWith('workrules-highcontext') || id.startsWith('dresscode-temiyage') || cat === 'highcontext') {
+      return 'highcontext';
+    }
+    if (id.startsWith('ojigi') || id.startsWith('meishi-1') || id.startsWith('meishi-2') || id.startsWith('meishi-aisatsu') || id.startsWith('seating') || cat === 'ojigi') {
+      return 'ojigi';
+    }
+    if (id.startsWith('meishi-hourenso') || id.startsWith('dresscode-5s') || id.startsWith('dresscode-officecasual') || id.startsWith('dresscode-2') || id.startsWith('meishi-mail') || id.startsWith('meishi-3') || id.startsWith('email') || cat === 'hourenso') {
+      return 'hourenso';
+    }
+    if (id.startsWith('meishi-nomikai') || id.startsWith('nomikai') || cat === 'nomikai') {
+      return 'nomikai';
+    }
+    return cat;
+  };
+
+  const getCategoryLabel = (cat) => {
+    const labels = {
+      highcontext: 'High-Context',
+      ojigi: 'Cúi chào & Nghi lễ',
+      hourenso: 'Báo cáo (HouRenSo)',
+      nomikai: 'Tiệc rượu (Nomikai)'
+    };
+    return labels[cat] || (cat || '').toUpperCase();
+  };
+
+  const leaderboard = useMemo(() => {
+    const myTotalScore = challengesCompleted.reduce((acc, c) => acc + c.score, 0);
+    let list = dbUsersList;
+    if (!list || list.length === 0) {
+      try {
+        list = JSON.parse(localStorage.getItem('users')) || [];
+      } catch { }
+    }
+
+    let currentUserEmail = '';
+    try {
+      const session = JSON.parse(localStorage.getItem('session_user'));
+      if (session) {
+        currentUserEmail = session.email || '';
+      }
+    } catch (e) { }
+
+    const ADMIN_EMAILS = ['admin@nihon.com', 'admin@nihon.edu.vn'];
+
+    const mapped = list
+      .filter(u => {
+        const email = (u.email || '').trim().toLowerCase();
+        return !ADMIN_EMAILS.includes(email);
+      })
+      .map(u => {
+        const isMe = (currentUserEmail && u.email && u.email.trim().toLowerCase() === currentUserEmail.trim().toLowerCase());
+        const score = isMe ? myTotalScore : (u.challengeScore !== undefined ? u.challengeScore : 0);
+
+        return {
+          name: u.name || 'Học viên ẩn danh',
+          avatar: u.avatar || '🧑‍💻',
+          score,
+          isMe
+        };
+      });
+
+    return mapped.sort((a, b) => b.score - a.score);
+  }, [challengesCompleted, dbUsersList]);
+
+  const cardsFlippedCount = useMemo(() => {
+    const flippedList = Array.from(new Set(cardsFlipped || []));
+    const allItems = Array.isArray(dictionary) ? dictionary : MANNERS_DATA;
+    return flippedList.filter(id => allItems.some(item => item.id === id)).length;
+  }, [cardsFlipped, dictionary]);
+
+  const filteredData = (Array.isArray(dictionary) ? dictionary : MANNERS_DATA).filter(item => {
+    if (!item) return false;
+    const itemGroupCategory = getCardGroupCategory(item);
+    const matchesCat = activeCategory === 'all' || itemGroupCategory === activeCategory;
+    const matchesBookmark = !showOnlyBookmarked || (Array.isArray(bookmarkedCards) && bookmarkedCards.includes(item.id));
+    const matchesSearch = (item.titleVi || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.titleJp || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.frontDesc || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesBookmark && matchesSearch;
+  });
+
+  const badgesList = useMemo(() => [
+    {
+      id: 'novice',
+      icon: '🌱',
+      name: 'Tân binh nhập môn',
+      desc: 'Lật xem tối thiểu 1 thẻ học',
+      check: () => cardsFlippedCount >= 1,
+      color: '#27ae60',
+      bg: 'rgba(46, 204, 113, 0.1)'
+    },
+    {
+      id: 'diligent',
+      icon: '📚',
+      name: 'Học viên cần cù',
+      desc: 'Lật xem tối thiểu 10 thẻ học',
+      check: () => cardsFlippedCount >= 10,
+      color: '#2980b9',
+      bg: 'rgba(52, 152, 219, 0.1)'
+    },
+    {
+      id: 'scholar',
+      icon: '🧠',
+      name: 'Uyên bác lễ nghi',
+      desc: 'Lật xem tất cả các thẻ học',
+      check: () => cardsFlippedCount >= (Array.isArray(dictionary) ? dictionary : MANNERS_DATA).length,
+      color: '#e67e22',
+      bg: 'rgba(230, 126, 34, 0.1)'
+    },
+    {
+      id: 'challenger_1',
+      icon: '🎯',
+      name: 'Chiến binh thử thách',
+      desc: 'Hoàn thành tối thiểu 1 thử thách',
+      check: () => challengesCompleted.length >= 1,
+      color: '#9b59b6',
+      bg: 'rgba(155, 89, 182, 0.1)'
+    },
+    {
+      id: 'challenger_5',
+      icon: '👑',
+      name: 'Bậc thầy lễ nghi',
+      desc: 'Hoàn thành tối thiểu 5 thử thách',
+      check: () => challengesCompleted.length >= 5,
+      color: '#8e44ad',
+      bg: 'rgba(142, 68, 173, 0.1)'
+    },
+    {
+      id: 'challenger_15',
+      icon: '🔥',
+      name: 'Kẻ chinh phục',
+      desc: 'Hoàn thành tối thiểu 15 thử thách',
+      check: () => challengesCompleted.length >= 15,
+      color: '#e74c3c',
+      bg: 'rgba(231, 76, 60, 0.1)'
+    },
+    {
+      id: 'perfect',
+      icon: '⭐',
+      name: 'Hoàn hảo 100%',
+      desc: 'Đạt điểm tối đa ở một thử thách bất kỳ',
+      check: () => challengesCompleted.some(c => c.score === c.total),
+      color: '#f1c40f',
+      bg: 'rgba(241, 196, 15, 0.1)'
+    },
+    {
+      id: 'legend',
+      icon: '💎',
+      name: 'Huyền thoại văn hóa',
+      desc: 'Tổng điểm tích lũy đạt từ 50đ trở lên',
+      check: () => challengesCompleted.reduce((acc, c) => acc + c.score, 0) >= 50,
+      color: '#1abc9c',
+      bg: 'rgba(26, 188, 156, 0.1)'
+    },
+    {
+      id: 'ambassador',
+      icon: '💖',
+      name: 'Sứ giả văn hóa',
+      desc: 'Lưu tối thiểu 5 thẻ học yêu thích',
+      check: () => bookmarkedCards.length >= 5,
+      color: '#d35400',
+      bg: 'rgba(211, 84, 0, 0.1)'
+    }
+  ], [cardsFlippedCount, challengesCompleted, bookmarkedCards, dictionary]);
+
+  useEffect(() => {
+    localStorage.setItem('nihon_cards_flipped', JSON.stringify(cardsFlipped));
+    const session = JSON.parse(localStorage.getItem('session_user'));
+    if (session && session.email && cardsFlipped) {
+      syncFlippedToSharedStore(cardsFlipped);
+    }
+  }, [cardsFlipped]);
+
+  useEffect(() => {
+    localStorage.setItem('nihon_challenges_completed', JSON.stringify(challengesCompleted));
+  }, [challengesCompleted]);
+
+  useEffect(() => {
+    localStorage.setItem('nihon_bookmarked_cards', JSON.stringify(bookmarkedCards));
+  }, [bookmarkedCards]);
+
+
+
+  const playBeep = (type) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      if (type === 'correct') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.frequency.setValueAtTime(800, ctx.currentTime + 0.1);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.1);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+        osc2.start(ctx.currentTime + 0.1);
+        osc2.stop(ctx.currentTime + 0.25);
+      } else if (type === 'incorrect') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(250, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.2);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.frequency.setValueAtTime(180, ctx.currentTime + 0.15);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        gain2.gain.setValueAtTime(0.15, ctx.currentTime + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc2.start(ctx.currentTime + 0.15);
+        osc2.stop(ctx.currentTime + 0.4);
+      }
+    } catch (e) {
+      console.warn("AudioContext play error:", e);
+    }
+  };
+
+  const startGeneralChallenge = () => {
+    const list = Array.isArray(dictionary) ? dictionary : MANNERS_DATA;
+    const allScenarios = [];
+    list.forEach(item => {
+      if (item.scenarios && item.scenarios.length > 0) {
+        item.scenarios.forEach(scen => {
+          allScenarios.push({
+            ...scen,
+            cardTitle: item.titleVi,
+            cardId: item.id
+          });
+        });
+      }
+    });
+
+    if (allScenarios.length === 0) {
+      alert("Chưa có câu hỏi thử thách nào!");
+      return;
+    }
+
+    const shuffled = [...allScenarios].sort(() => 0.5 - Math.random()).slice(0, 10);
+    setPracticeItem({
+      id: 'general-challenge',
+      titleVi: 'Thử thách văn hóa tổng hợp',
+      titleJp: '総合的なビジネスマナー',
+      scenarios: shuffled
+    });
+    setCurrentScenarioIdx(0);
+    setSelectedOptionIdx(null);
+    setQuizScore(0);
+    setIsQuizFinished(false);
+  };
+
+  const startPractice = (item) => {
+    setPracticeItem(item);
+    setCurrentScenarioIdx(0);
+    setSelectedOptionIdx(null);
+    setQuizScore(0);
+    setIsQuizFinished(false);
+  };
+
+  const handleSelectOption = (idx) => {
+    setSelectedOptionIdx(idx);
+    const isCorrect = practiceItem.scenarios[currentScenarioIdx].correctOption === idx;
+    if (isCorrect) {
+      setQuizScore(prev => prev + 1);
+      playBeep('correct');
+    } else {
+      playBeep('incorrect');
+    }
+  };
+
+  const handleNextScenario = () => {
+    if (currentScenarioIdx < practiceItem.scenarios.length - 1) {
+      setCurrentScenarioIdx(prev => prev + 1);
+      setSelectedOptionIdx(null);
+    } else {
+      const cardId = practiceItem.id;
+      const total = practiceItem.scenarios.length;
+      const score = quizScore;
+
+      setChallengesCompleted(prevChallenges => {
+        const newChallenge = { cardId, score, total };
+        const nextList = [...prevChallenges, newChallenge];
+        const newTotalScore = nextList.reduce((acc, c) => acc + c.score, 0);
+        syncScoreToSharedStore(newTotalScore, nextList);
+        return nextList;
+      });
+      setIsQuizFinished(true);
+    }
+  };
+
+  const resetPractice = () => {
+    setCurrentScenarioIdx(0);
+    setSelectedOptionIdx(null);
+    setQuizScore(0);
+    setIsQuizFinished(false);
+  };
+
+  const closePractice = () => {
+    setPracticeItem(null);
+  };
 
   const handleCardClick = (id) => {
-    setFlippedCards(prev => ({
+    setFlippedCards(prev => {
+      const isNowFlipped = !prev[id];
+      if (isNowFlipped) {
+        setCardsFlipped(fList => fList.includes(id) ? fList : [...fList, id]);
+      }
+      return {
+        ...prev,
+        [id]: isNowFlipped
+      };
+    });
+  };
+
+  const featuredTopics = [
+    {
+      id: 'highcontext',
+      title: 'High-Context',
+      subtitle: 'Giao tiếp ẩn ý',
+      jpName: '空気を読む',
+      desc: 'Nghệ thuật thấu hiểu ý nhị, đọc vị nét mặt & tông giọng chốn công sở Nhật.',
+      icon: '🤐',
+      gradient: 'linear-gradient(135deg, #1abc9c, #16a085)',
+      onClick: () => {
+        setActiveCategory(prev => prev === 'highcontext' ? 'all' : 'highcontext');
+      }
+    },
+    {
+      id: 'ojigi',
+      title: 'Ojigi',
+      subtitle: 'Văn hóa Cúi chào',
+      jpName: 'お辞儀',
+      desc: 'Các góc cúi chào chuẩn (15°, 30°, 45°) tương ứng với từng tình huống xã giao.',
+      icon: '🙇‍♂️',
+      gradient: 'linear-gradient(135deg, #e74c3c, #c0392b)',
+      onClick: () => {
+        setActiveCategory(prev => prev === 'ojigi' ? 'all' : 'ojigi');
+      }
+    },
+    {
+      id: 'hourenso',
+      title: 'HouRenSo',
+      subtitle: 'Báo cáo & Thảo luận',
+      jpName: '報連相',
+      desc: 'Xương sống giao tiếp nhóm: Báo cáo (Hou), Liên lạc (Ren), Thảo luận (So).',
+      icon: '📞',
+      gradient: 'linear-gradient(135deg, #3498db, #2980b9)',
+      onClick: () => {
+        setActiveCategory(prev => prev === 'hourenso' ? 'all' : 'hourenso');
+      }
+    },
+    {
+      id: 'nomikai',
+      title: 'Nomikai',
+      subtitle: 'Tiệc rượu công sở',
+      jpName: '飲み会',
+      desc: 'Gắn kết đồng nghiệp sếp - lính qua các bữa tiệc giao lưu sau giờ làm việc.',
+      icon: '🍻',
+      gradient: 'linear-gradient(135deg, #f1c40f, #f39c12)',
+      onClick: () => {
+        setActiveCategory(prev => prev === 'nomikai' ? 'all' : 'nomikai');
+      }
+    }
+  ];
+
+  const generalChallengeRecord = useMemo(() => {
+    const list = challengesCompleted.filter(c => c.cardId === 'general-challenge');
+    if (list.length === 0) return null;
+    return list.reduce((max, c) => c.score > max.score ? c : max, list[0]);
+  }, [challengesCompleted]);
+
+  const handleStartCardQuiz = (e, cardId) => {
+    e.stopPropagation();
+    setCardQuizStates(prev => ({
       ...prev,
-      [id]: !prev[id]
+      [cardId]: {
+        currentIdx: 0,
+        selectedOpt: null,
+        score: 0,
+        isFinished: false
+      }
     }));
   };
 
-  const categories = [
-    { id: 'all', label: 'Tất cả' },
-    { id: 'ojigi', label: 'Cúi chào (Ojigi)' },
-    { id: 'meishi', label: 'Danh thiếp (Meishi)' },
-    { id: 'seating', label: 'Ghế ngồi (Kamiza)' },
-    { id: 'dresscode', label: 'Trang phục (Dresscode)' },
-    { id: 'nomikai', label: 'Tiệc rượu (Nomikai)' },
-    { id: 'email_phone', label: 'Email & Điện thoại (Email & Phone)' },
-    { id: 'omiyage', label: 'Công tác & Quà cáp (Omiyage)' },
-    { id: 'workrules', label: 'Quy tắc làm việc (Work Rules)' }
-  ];
+  const handleCardQuizAnswer = (e, cardId, optIdx, isCorrect) => {
+    e.stopPropagation();
+    setCardQuizStates(prev => {
+      const state = prev[cardId];
+      if (!state || state.selectedOpt !== null) return prev;
 
-  const filteredData = dictionary.filter(item => {
-    const matchesCat = activeCategory === 'all' || item.category === activeCategory;
-    const matchesSearch = item.titleVi.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          item.titleJp.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.frontDesc.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+      const newScore = isCorrect ? state.score + 1 : state.score;
+      playBeep(isCorrect ? 'correct' : 'incorrect');
+
+      return {
+        ...prev,
+        [cardId]: {
+          ...state,
+          selectedOpt: optIdx,
+          score: newScore
+        }
+      };
+    });
+  };
+
+  const handleCardQuizNext = (e, cardId, scenarios) => {
+    e.stopPropagation();
+    setCardQuizStates(prev => {
+      const state = prev[cardId];
+      if (!state) return prev;
+
+      if (state.currentIdx < scenarios.length - 1) {
+        return {
+          ...prev,
+          [cardId]: {
+            ...state,
+            currentIdx: state.currentIdx + 1,
+            selectedOpt: null
+          }
+        };
+      } else {
+        const finalScore = state.score;
+        const total = scenarios.length;
+
+        setChallengesCompleted(prevChallenges => {
+          const newChallenge = { cardId, score: finalScore, total };
+          const nextList = [...prevChallenges, newChallenge];
+          const newTotalScore = nextList.reduce((acc, c) => acc + c.score, 0);
+          syncScoreToSharedStore(newTotalScore, nextList);
+          return nextList;
+        });
+
+        return {
+          ...prev,
+          [cardId]: {
+            ...state,
+            isFinished: true
+          }
+        };
+      }
+    });
+  };
+
+  const handleCardQuizReset = (e, cardId) => {
+    e.stopPropagation();
+    setCardQuizStates(prev => ({
+      ...prev,
+      [cardId]: {
+        currentIdx: 0,
+        selectedOpt: null,
+        score: 0,
+        isFinished: false
+      }
+    }));
+  };
+
+  const handleCardQuizClose = (e, cardId) => {
+    e.stopPropagation();
+    setCardQuizStates(prev => {
+      const copy = { ...prev };
+      delete copy[cardId];
+      return copy;
+    });
+  };
 
   return (
     <div>
+      <ConfettiCanvas active={isQuizFinished && quizScore === practiceItem?.scenarios?.length} />
+
       <div className="section-header" style={{ marginBottom: '2.5rem', textAlign: 'center' }}>
         <h2 className="section-title" style={{ fontSize: '2.2rem', color: 'var(--jp-text)', fontWeight: 800 }}>
           Sổ tay Văn hóa <span style={{ color: 'var(--jp-red)' }}>Nhật Bản</span>
@@ -885,25 +831,382 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
         </p>
       </div>
 
+      {/* Progress Dashboard */}
+      <div className="progress-dashboard" style={{
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderRadius: '16px',
+        padding: '1.75rem',
+        marginBottom: '2.5rem',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '1.75rem',
+        alignItems: 'start'
+      }}>
+        {/* Flipped Progress */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            📖 Thẻ đã học (Flipped)
+          </span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+            <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--jp-text)', lineHeight: 1 }}>
+              {cardsFlippedCount}
+            </span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--jp-text-muted)', fontWeight: 600 }}>
+              / {(Array.isArray(dictionary) ? dictionary : MANNERS_DATA).length}
+            </span>
+          </div>
+          <div style={{ width: '100%', height: '8px', background: 'var(--jp-bg)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{
+              width: `${(Array.isArray(dictionary) ? dictionary : MANNERS_DATA).length ? Math.min(100, Math.round(cardsFlippedCount / (Array.isArray(dictionary) ? dictionary : MANNERS_DATA).length * 100)) : 0}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, var(--jp-blue) 0%, #2ecc71 100%)',
+              transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+            }} />
+          </div>
+        </div>
+
+        {/* General Challenge record */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            🎯 Thử thách tổng hợp
+          </span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+            <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--jp-red)', lineHeight: 1 }}>
+              {generalChallengeRecord ? `${generalChallengeRecord.score}` : '0'}
+            </span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--jp-text-muted)', fontWeight: 600 }}>
+              {generalChallengeRecord ? `/${generalChallengeRecord.total}đ kỷ lục` : 'điểm kỷ lục'}
+            </span>
+          </div>
+          <button
+            onClick={startGeneralChallenge}
+            style={{
+              width: '100%',
+              padding: '0.6rem 0.8rem',
+              background: 'linear-gradient(135deg, var(--jp-red) 0%, #c0392b 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(188, 0, 45, 0.25)',
+              transition: 'all 0.25s ease',
+              marginTop: '0.35rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 16px rgba(188, 0, 45, 0.35)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 12px rgba(188, 0, 45, 0.25)';
+            }}
+          >
+            🎯 Làm thử thách tổng hợp (10 câu)
+          </button>
+        </div>
+
+        {/* Medals and badges */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              🏆 Danh hiệu đạt được
+            </span>
+            <button
+              onClick={() => setShowBadgesModal(true)}
+              className="badges-guide-btn"
+            >
+              Cách nhận danh hiệu
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.2rem' }}>
+            {badgesList.filter(b => b.check()).length === 0 ? (
+              <span style={{ fontSize: '0.72rem', color: 'var(--jp-text-muted)', fontStyle: 'italic' }}>
+                Chưa mở khóa danh hiệu nào.
+              </span>
+            ) : (
+              badgesList.filter(b => b.check()).map(badge => (
+                <span
+                  key={badge.id}
+                  style={{
+                    fontSize: '0.7rem',
+                    padding: '4px 8px',
+                    borderRadius: '20px',
+                    background: badge.bg,
+                    color: badge.color,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  {badge.icon} {badge.name}
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Leaderboard Mini widget */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', position: 'relative' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', fontWeight: 700 }}>
+                🏆 Bảng xếp hạng Thử thách
+              </span>
+              <button
+                onClick={() => setShowLeaderboardInfo(prev => !prev)}
+                style={{
+                  background: 'var(--jp-blue-light)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '0.6rem',
+                  color: 'var(--jp-blue)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  flexShrink: 0
+                }}
+                title="Cách tính điểm"
+              >
+                i
+              </button>
+              {showLeaderboardInfo && (
+                <div style={{
+                  position: 'absolute',
+                  top: '22px',
+                  left: 0,
+                  zIndex: 50,
+                  background: 'var(--jp-card-bg)',
+                  border: '1px solid var(--jp-border)',
+                  borderRadius: '10px',
+                  padding: '0.75rem',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  width: '220px',
+                  fontSize: '0.72rem',
+                  color: 'var(--jp-text)',
+                  lineHeight: 1.5
+                }} onClick={(e) => e.stopPropagation()}>
+                  <strong style={{ color: 'var(--jp-blue)', display: 'block', marginBottom: '0.4rem' }}>💡 Cách tính điểm</strong>
+                  <ul style={{ margin: 0, paddingLeft: '1rem' }}>
+                    <li>Mỗi câu đúng = <strong>+1 điểm</strong></li>
+                    <li>Điểm cộng dồn từ tất cả lần thi</li>
+                    <li>Thi lại để cải thiện điểm số</li>
+                    <li>Bấm <strong>"🎯 Làm thử thách tổng hợp"</strong> để bắt đầu tích lũy điểm</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                if (window.confirm('Bạn có chắc muốn đặt lại toàn bộ tiến trình học và các thử thách đã lưu không?')) {
+                  setCardsFlipped([]);
+                  setChallengesCompleted([]);
+                  setBookmarkedCards([]);
+                }
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '0.7rem',
+                color: 'var(--jp-text-muted)',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                padding: 0
+              }}
+              onMouseEnter={(e) => e.target.style.color = 'var(--jp-red)'}
+              onMouseLeave={(e) => e.target.style.color = 'var(--jp-text-muted)'}
+            >
+              Đặt lại
+            </button>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.35rem',
+            background: 'var(--jp-soft-surface)',
+            padding: '0.6rem',
+            borderRadius: '10px',
+            border: '1px solid var(--jp-border)'
+          }}>
+            {leaderboard.slice(0, 3).map((u, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.75rem',
+                  color: u.isMe ? 'var(--jp-red)' : 'var(--jp-text)',
+                  fontWeight: u.isMe ? 800 : 500,
+                  padding: '2px 0'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflow: 'hidden', maxWidth: '80%' }}>
+                  <span style={{ minWidth: '16px', display: 'inline-block', flexShrink: 0 }}>
+                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    {u.avatar && (u.avatar.startsWith('data:') || u.avatar.startsWith('http') || u.avatar.startsWith('https')) ? (
+                      <img
+                        src={u.avatar}
+                        alt="avatar"
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          display: 'inline-block',
+                          border: '1px solid var(--jp-border)'
+                        }}
+                      />
+                    ) : (
+                      <span>{u.avatar || '🧑‍💻'}</span>
+                    )}
+                  </span>
+                  <span style={{ maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexGrow: 1 }}>
+                    {u.name && u.name.startsWith('data:image') ? 'Học viên' : u.name}
+                  </span>
+                </span>
+                <span style={{ fontWeight: 700 }}>
+                  {u.score}đ
+                </span>
+              </div>
+            ))}
+
+            {leaderboard.length > 3 && (
+              <button
+                onClick={() => setShowLeaderboardModal(true)}
+                className="leaderboard-view-more"
+              >
+                <span>Xem thêm ({leaderboard.length - 3} học viên)</span>
+                <span style={{ fontSize: '0.8rem' }}>→</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Featured Topics filter grid */}
+      <div className="featured-topics-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '1.25rem',
+        marginBottom: '2.5rem'
+      }}>
+        {featuredTopics.map(topic => {
+          const isActive = activeCategory === topic.id;
+          return (
+            <div
+              key={topic.id}
+              onClick={topic.onClick}
+              className="featured-topic-card hover-scale"
+              style={{
+                background: 'var(--jp-card-bg)',
+                borderRadius: '16px',
+                border: isActive ? '2px solid var(--jp-red)' : '1px solid var(--jp-border)',
+                padding: '1.25rem',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: isActive ? '0 8px 24px rgba(188, 0, 45, 0.12)' : '0 4px 12px rgba(0, 0, 0, 0.02)'
+              }}
+            >
+              <div style={{
+                position: 'absolute',
+                top: '-20px',
+                right: '-20px',
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: topic.gradient,
+                opacity: 0.15,
+                zIndex: 0
+              }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 1 }}>
+                <span style={{
+                  fontSize: '2rem',
+                  width: '45px',
+                  height: '45px',
+                  borderRadius: '12px',
+                  background: topic.gradient,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                }}>
+                  {topic.icon}
+                </span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--jp-text)' }}>
+                    {topic.title}
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--jp-text-muted)', display: 'block', fontWeight: 600 }}>
+                    {topic.subtitle} • {topic.jpName}
+                  </span>
+                </div>
+              </div>
+
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--jp-text-muted)', lineHeight: '1.4', zIndex: 1 }}>
+                {topic.desc}
+              </p>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderTop: '1px dashed var(--jp-border)',
+                paddingTop: '0.6rem',
+                marginTop: 'auto',
+                fontSize: '0.72rem',
+                color: isActive ? 'var(--jp-red)' : 'var(--jp-blue)',
+                fontWeight: 700
+              }}>
+                <span>{isActive ? '✓ Đang lọc chủ đề' : 'Xem thẻ học nhanh'}</span>
+                <span>→</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Modern Search & Filter Bar */}
       <div style={{
         background: 'var(--jp-card-bg)',
-        padding: '1.5rem',
+        padding: '1.25rem',
         borderRadius: '16px',
         boxShadow: '0 8px 30px rgba(0,0,0,0.04)',
         marginBottom: '3rem',
         border: '1px solid var(--jp-border)',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '1.5rem'
+        gap: '1rem',
+        alignItems: 'center',
+        flexWrap: 'wrap'
       }}>
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', flexGrow: 1, minWidth: '280px' }}>
           <div style={{ position: 'absolute', top: '50%', left: '16px', transform: 'translateY(-50%)', color: 'var(--jp-text-muted)' }}>
             🔍
           </div>
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm tình huống, quy tắc (VD: cúi chào, danh thiếp...)" 
+          <input
+            type="text"
+            placeholder="Tìm kiếm tình huống, quy tắc (VD: cúi chào, danh thiếp...)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -922,227 +1225,1273 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
           />
         </div>
 
-        <div className="filter-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              style={{
-                padding: '0.6rem 1.25rem',
-                borderRadius: '30px',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                border: activeCategory === cat.id ? 'none' : '1px solid var(--jp-border)',
-                background: activeCategory === cat.id ? 'linear-gradient(135deg, var(--jp-red), #c0392b)' : 'var(--jp-surface-raised)',
-                color: activeCategory === cat.id ? '#fff' : 'var(--jp-text-muted)',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: activeCategory === cat.id ? '0 4px 15px rgba(232, 54, 93, 0.3)' : 'none'
-              }}
-              onMouseEnter={(e) => {
-                if (activeCategory !== cat.id) e.target.style.borderColor = 'var(--jp-blue)';
-              }}
-              onMouseLeave={(e) => {
-                if (activeCategory !== cat.id) e.target.style.borderColor = 'var(--jp-border)';
-              }}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
+        {/* Bookmark filter button */}
+        <button
+          onClick={() => setShowOnlyBookmarked(prev => !prev)}
+          style={{
+            padding: '0.9rem 1.5rem',
+            borderRadius: '12px',
+            border: showOnlyBookmarked ? 'none' : '2px solid var(--jp-border)',
+            background: showOnlyBookmarked ? 'linear-gradient(135deg, #f1c40f 0%, #f39c12 100%)' : 'var(--jp-surface)',
+            color: showOnlyBookmarked ? '#fff' : 'var(--jp-text-muted)',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: showOnlyBookmarked ? '0 4px 15px rgba(241, 196, 15, 0.3)' : 'none'
+          }}
+          onMouseEnter={(e) => {
+            if (!showOnlyBookmarked) e.target.style.borderColor = 'var(--jp-blue)';
+          }}
+          onMouseLeave={(e) => {
+            if (!showOnlyBookmarked) e.target.style.borderColor = 'var(--jp-border)';
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill={showOnlyBookmarked ? '#fff' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+          <span>{showOnlyBookmarked ? 'Đang hiện Thẻ Đã Lưu' : 'Thẻ Đã Lưu'}</span>
+        </button>
       </div>
 
-      {/* Tối ưu hóa UI lưới Flashcard gọn gàng hơn */}
+      {/* Flashcard Grid */}
       <div className="flashcard-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
         gap: '1.5rem'
       }}>
-        {filteredData.map((item) => (
-          <div
-            key={item.id}
-            className="flashcard-container"
-            onClick={() => handleCardClick(item.id)}
-            style={{
-              height: '420px',
-              perspective: '1000px',
-              cursor: 'pointer'
-            }}
-          >
-            <div className={`flashcard ${flippedCards[item.id] ? 'flipped' : ''}`} style={{
-              position: 'relative',
-              width: '100%',
-              height: '100%',
-              transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-              transformStyle: 'preserve-3d'
-            }}>
-              {/* Front Face - Sạch sẽ hơn */}
-              <div className="card-face card-front" style={{
-                position: 'absolute',
+        {filteredData.map((item) => {
+          const isStarred = bookmarkedCards.includes(item.id);
+
+          return (
+            <div
+              key={item.id}
+              className="flashcard-container"
+              onClick={() => handleCardClick(item.id)}
+              style={{
+                height: '420px',
+                perspective: '1000px',
+                cursor: 'pointer',
+                transform: 'scale(1) translateZ(0)',
+                transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+                borderRadius: '12px',
+                backfaceVisibility: 'hidden',
+                WebkitFontSmoothing: 'subpixel-antialiased'
+              }}
+            >
+              <div className={`flashcard ${flippedCards[item.id] ? 'flipped' : ''}`} style={{
+                position: 'relative',
                 width: '100%',
                 height: '100%',
-                backfaceVisibility: 'hidden',
-                background: '#ffffff',
-                border: '1px solid var(--jp-border)',
-                borderRadius: '12px',
-                padding: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                transformStyle: 'preserve-3d'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="card-badge" style={{
-                    fontSize: '0.65rem',
-                    background: 'var(--jp-blue-light)',
-                    color: 'var(--jp-blue)',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontWeight: 700
-                  }}>
-                    {item.category.toUpperCase()}
-                  </span>
-                  <HelpCircle size={14} style={{ color: 'var(--jp-text-muted)' }} />
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'center', margin: '0.25rem 0' }}>
-                  <CategoryIcon category={item.category} id={item.id} />
-                </div>
+                {/* Front Face */}
+                <div className="card-face card-front" style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  backfaceVisibility: 'hidden',
+                  background: '#ffffff',
+                  border: '1px solid var(--jp-border)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className="card-badge" style={{
+                      fontSize: '0.65rem',
+                      background: 'var(--jp-blue-light)',
+                      color: 'var(--jp-blue)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontWeight: 700
+                    }}>
+                      {getCategoryLabel(getCardGroupCategory(item))}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBookmarkedCards(prev => isStarred ? prev.filter(id => id !== item.id) : [...prev, item.id]);
+                      }}
+                      className="card-bookmark-btn"
+                      style={{
+                        color: isStarred ? '#f1c40f' : 'var(--jp-text-muted)'
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill={isStarred ? '#f1c40f' : 'none'} stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </button>
+                  </div>
 
-                <div style={{ textAlign: 'center' }}>
-                  <h4 className="card-title-jp" style={{
-                    fontSize: '1.1rem',
-                    color: 'var(--jp-red)',
-                    marginBottom: '0.25rem',
-                    fontWeight: 700
-                  }}>{item.titleJp}</h4>
-                  <h5 className="card-title-vi" style={{
-                    fontSize: '0.9rem',
-                    color: 'var(--jp-blue)',
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
+                    <CategoryIcon category={item.category} id={item.id} />
+                  </div>
+
+                  <div style={{ textAlign: 'center' }}>
+                    <h4 className="card-title-jp" style={{
+                      fontSize: '1.25rem',
+                      color: 'var(--jp-red)',
+                      marginBottom: '0.35rem',
+                      fontWeight: 700
+                    }}>{item.titleJp}</h4>
+                    <h5 className="card-title-vi" style={{
+                      fontSize: '0.95rem',
+                      color: 'var(--jp-blue)',
+                      fontWeight: 600,
+                      margin: 0
+                    }}>{item.titleVi}</h5>
+                  </div>
+
+                  <p style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--jp-text-muted)',
+                    textAlign: 'center',
+                    margin: '0.5rem 0',
+                    lineHeight: '1.4'
+                  }}>
+                    {item.frontDesc}
+                  </p>
+
+                  <div style={{
+                    textAlign: 'center',
+                    fontSize: '0.72rem',
+                    color: 'var(--jp-text-muted)',
                     fontWeight: 600,
-                    margin: 0
-                  }}>{item.titleVi}</h5>
-                </div>
-
-                <p style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--jp-text-muted)',
-                  textAlign: 'center',
-                  margin: '0.5rem 0 0 0',
-                  lineHeight: '1.4'
-                }}>
-                  {item.frontDesc}
-                </p>
-
-                <div style={{
-                  textAlign: 'center',
-                  fontSize: '0.7rem',
-                  color: 'var(--jp-red)',
-                  fontWeight: 600,
-                  borderTop: '1px solid var(--jp-border)',
-                  paddingTop: '0.5rem'
-                }}>
-                  Click để xem chi tiết
-                </div>
-              </div>
-
-              {/* Back Face - Dễ nhìn, màu sắc Do/Don't dịu mát */}
-              <div className="card-face card-back" style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                backfaceVisibility: 'hidden',
-                background: 'var(--jp-card-bg)',
-                border: '1px solid var(--jp-border)',
-                borderRadius: '12px',
-                padding: '1rem',
-                transform: 'rotateY(180deg)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
-              }}>
-                <div>
-                  <h4 style={{ 
-                    color: 'var(--jp-blue)', 
-                    fontSize: '0.95rem', 
-                    fontWeight: 700, 
-                    marginBottom: '0.75rem', 
-                    borderBottom: '1px solid var(--jp-border)', 
-                    paddingBottom: '0.4rem',
-                    textAlign: 'center'
+                    borderTop: '1px solid var(--jp-border)',
+                    paddingTop: '0.75rem',
+                    marginTop: 'auto'
                   }}>
-                    {item.titleVi}
-                  </h4>
-
-                  <div className="card-do-dont">
-                    {/* DO - Nền dịu nhẹ */}
-                    <div className="dos" style={{
-                      background: 'rgba(46, 204, 113, 0.06)',
-                      padding: '0.6rem 0.75rem',
-                      borderRadius: '6px',
-                      marginBottom: '0.6rem',
-                      borderLeft: '3px solid #2ecc71'
-                    }}>
-                      <h5 style={{
-                        fontSize: '0.75rem',
-                        color: '#27ae60',
-                        fontWeight: 700,
-                        margin: '0 0 0.25rem 0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem'
-                      }}>
-                        <Check size={12} strokeWidth={3} /> NÊN LÀM
-                      </h5>
-                      <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.7rem', color: 'var(--jp-text)', lineHeight: '1.4' }}>
-                        {(item.dos || []).map((doItem, index) => (
-                          <li key={index} style={{ marginBottom: '2px' }}>{doItem}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* DONT - Nền dịu nhẹ */}
-                    <div className="donts" style={{
-                      background: 'rgba(188, 0, 45, 0.05)',
-                      padding: '0.6rem 0.75rem',
-                      borderRadius: '6px',
-                      borderLeft: '3px solid var(--jp-red)'
-                    }}>
-                      <h5 style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--jp-red)',
-                        fontWeight: 700,
-                        margin: '0 0 0.25rem 0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem'
-                      }}>
-                        <X size={12} strokeWidth={3} /> TRÁNH LÀM
-                      </h5>
-                      <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.7rem', color: 'var(--jp-text)', lineHeight: '1.4' }}>
-                        {(item.donts || []).map((dontItem, index) => (
-                          <li key={index} style={{ marginBottom: '2px' }}>{dontItem}</li>
-                        ))}
-                      </ul>
-                    </div>
+                    📖 Nhấn để xem quy tắc NÊN / TRÁNH LÀM
                   </div>
                 </div>
 
-                <div style={{
-                  textAlign: 'center',
-                  fontSize: '0.7rem',
-                  color: 'var(--jp-text-muted)',
-                  borderTop: '1px solid var(--jp-border)',
-                  paddingTop: '0.5rem'
+                {/* Back Face - Dễ nhìn, hỗ trợ làm thử thách trực tiếp */}
+                <div className="card-face card-back" style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                  backfaceVisibility: 'hidden',
+                  background: 'var(--jp-card-bg)',
+                  border: '1px solid var(--jp-border)',
+                  borderRadius: '12px',
+                  padding: '1.15rem',
+                  transform: 'rotateY(180deg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                  boxSizing: 'border-box'
                 }}>
-                  Click để quay lại
+                  {/* Absolute Golden Star Bookmark */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBookmarkedCards(prev => isStarred ? prev.filter(id => id !== item.id) : [...prev, item.id]);
+                    }}
+                    className="card-bookmark-btn"
+                    style={{
+                      color: isStarred ? '#f1c40f' : 'var(--jp-text-muted)'
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill={isStarred ? '#f1c40f' : 'none'} stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </button>
+
+                  {cardQuizStates[item.id] ? (
+                    // QUIZ UI inside Card Back
+                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }} onClick={(e) => e.stopPropagation()}>
+                      <div>
+                        {/* Quiz Title & Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--jp-border)', paddingBottom: '0.4rem', marginBottom: '0.6rem', paddingRight: '40px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--jp-red)' }}>🎯 Thử thách</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--jp-text-muted)', fontWeight: 600 }}>
+                            Câu {cardQuizStates[item.id].isFinished ? item.scenarios.length : cardQuizStates[item.id].currentIdx + 1}/{item.scenarios.length}
+                          </span>
+                        </div>
+
+                        {!cardQuizStates[item.id].isFinished ? (
+                          // Active Scenario Question
+                          <div>
+                            <p style={{
+                              fontSize: '0.78rem',
+                              lineHeight: '1.4',
+                              color: 'var(--jp-text)',
+                              margin: '0 0 0.8rem 0',
+                              fontWeight: 600,
+                              maxHeight: '110px',
+                              overflowY: 'auto',
+                              paddingRight: '4px'
+                            }}>
+                              {item.scenarios[cardQuizStates[item.id].currentIdx].situation}
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                              {item.scenarios[cardQuizStates[item.id].currentIdx].options.map((option, oIdx) => {
+                                const isSelected = cardQuizStates[item.id].selectedOpt === oIdx;
+                                const isCorrect = item.scenarios[cardQuizStates[item.id].currentIdx].correctOption === oIdx;
+                                const hasAnswered = cardQuizStates[item.id].selectedOpt !== null;
+
+                                let btnBg = 'var(--jp-surface)';
+                                let btnBorder = '1px solid var(--jp-border)';
+                                let btnColor = 'var(--jp-text)';
+
+                                if (hasAnswered) {
+                                  if (isCorrect) {
+                                    btnBg = 'rgba(46, 204, 113, 0.15)';
+                                    btnBorder = '1px solid #2ecc71';
+                                    btnColor = '#27ae60';
+                                  } else if (isSelected) {
+                                    btnBg = 'rgba(188, 0, 45, 0.1)';
+                                    btnBorder = '1px solid var(--jp-red)';
+                                    btnColor = 'var(--jp-red)';
+                                  } else {
+                                    btnBg = 'var(--jp-surface)';
+                                    btnColor = 'var(--jp-text-muted)';
+                                    btnBorder = '1px solid var(--jp-border)';
+                                  }
+                                }
+
+                                return (
+                                  <button
+                                    key={oIdx}
+                                    onClick={(e) => handleCardQuizAnswer(e, item.id, oIdx, isCorrect)}
+                                    disabled={hasAnswered}
+                                    style={{
+                                      width: '100%',
+                                      padding: '0.55rem 0.75rem',
+                                      borderRadius: '8px',
+                                      border: btnBorder,
+                                      background: btnBg,
+                                      color: btnColor,
+                                      fontSize: '0.72rem',
+                                      fontWeight: isSelected || (hasAnswered && isCorrect) ? 700 : 500,
+                                      textAlign: 'left',
+                                      cursor: hasAnswered ? 'default' : 'pointer',
+                                      transition: 'all 0.15s ease',
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    {oIdx === 0 ? 'A. ' : oIdx === 1 ? 'B. ' : 'C. '} {option}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Explanation */}
+                            {cardQuizStates[item.id].selectedOpt !== null && (
+                              <div style={{
+                                marginTop: '0.8rem',
+                                padding: '0.55rem 0.75rem',
+                                background: 'var(--jp-blue-light)',
+                                borderRadius: '8px',
+                                borderLeft: '3px solid var(--jp-blue)',
+                                maxHeight: '90px',
+                                overflowY: 'auto'
+                              }}>
+                                <p style={{ margin: 0, fontSize: '0.68rem', lineHeight: '1.35', color: 'var(--jp-text)' }}>
+                                  💡 <strong>Giải thích:</strong> {item.scenarios[cardQuizStates[item.id].currentIdx].explanation}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          // Quiz Finished Score Summary
+                          <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.4rem' }}>
+                              {cardQuizStates[item.id].score === item.scenarios.length ? '🎉' : '👍'}
+                            </span>
+                            <h5 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: 'var(--jp-text)' }}>
+                              Thử thách hoàn thành!
+                            </h5>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--jp-text-muted)', margin: '0 0 0.75rem 0' }}>
+                              Bạn đúng <strong>{cardQuizStates[item.id].score}/{item.scenarios.length}</strong> câu
+                            </p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--jp-red)', fontWeight: 700, margin: '0 0 1.25rem 0' }}>
+                              +{cardQuizStates[item.id].score}đ tích lũy xếp hạng!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action buttons footer */}
+                      <div style={{ display: 'flex', gap: '0.4rem', borderTop: '1px solid var(--jp-border)', paddingTop: '0.5rem', marginTop: 'auto' }}>
+                        {!cardQuizStates[item.id].isFinished ? (
+                          <>
+                            <button
+                              onClick={(e) => handleCardQuizClose(e, item.id)}
+                              style={{
+                                flex: 1,
+                                padding: '0.45rem 0',
+                                borderRadius: '8px',
+                                border: '1px solid var(--jp-border)',
+                                background: 'none',
+                                color: 'var(--jp-text-muted)',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Thoát
+                            </button>
+                            {cardQuizStates[item.id].selectedOpt !== null && (
+                              <button
+                                onClick={(e) => handleCardQuizNext(e, item.id, item.scenarios)}
+                                style={{
+                                  flex: 2,
+                                  padding: '0.45rem 0',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  background: 'var(--jp-blue)',
+                                  color: 'white',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {cardQuizStates[item.id].currentIdx < item.scenarios.length - 1 ? 'Câu tiếp theo' : 'Hoàn thành'}
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => handleCardQuizClose(e, item.id)}
+                              style={{
+                                flex: 1,
+                                padding: '0.45rem 0',
+                                borderRadius: '8px',
+                                border: '1px solid var(--jp-border)',
+                                background: 'none',
+                                color: 'var(--jp-text-muted)',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Xem Quy tắc
+                            </button>
+                            <button
+                              onClick={(e) => handleCardQuizReset(e, item.id)}
+                              style={{
+                                flex: 1,
+                                padding: '0.45rem 0',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: 'var(--jp-red)',
+                                color: 'white',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Làm lại
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // REGULAR DO/DONT LISTS UI
+                    <>
+                      <div>
+                        <h4 style={{
+                          color: 'var(--jp-blue)',
+                          fontSize: '0.95rem',
+                          fontWeight: 700,
+                          marginBottom: '0.6rem',
+                          borderBottom: '1px solid var(--jp-border)',
+                          paddingBottom: '0.35rem',
+                          textAlign: 'center',
+                          paddingRight: '24px'
+                        }}>
+                          {item.titleVi}
+                        </h4>
+
+                        <div className="card-do-dont">
+                          {/* DO - Nền dịu nhẹ */}
+                          <div className="dos" style={{
+                            background: 'rgba(46, 204, 113, 0.06)',
+                            padding: '0.5rem 0.6rem',
+                            borderRadius: '6px',
+                            marginBottom: '0.5rem',
+                            borderLeft: '3px solid #2ecc71'
+                          }}>
+                            <h5 style={{
+                              fontSize: '0.7rem',
+                              color: '#27ae60',
+                              fontWeight: 700,
+                              margin: '0 0 0.2rem 0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}>
+                              <Check size={11} strokeWidth={3} /> NÊN LÀM
+                            </h5>
+                            <ul style={{ margin: 0, paddingLeft: '0.85rem', fontSize: '0.68rem', color: 'var(--jp-text)', lineHeight: '1.35', maxHeight: '72px', overflowY: 'auto' }}>
+                              {(item.dos || []).map((doItem, index) => (
+                                <li key={index} style={{ marginBottom: '2px' }}>{doItem}</li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* DONT - Nền dịu nhẹ */}
+                          <div className="donts" style={{
+                            background: 'rgba(188, 0, 45, 0.05)',
+                            padding: '0.5rem 0.6rem',
+                            borderRadius: '6px',
+                            borderLeft: '3px solid var(--jp-red)'
+                          }}>
+                            <h5 style={{
+                              fontSize: '0.7rem',
+                              color: 'var(--jp-red)',
+                              fontWeight: 700,
+                              margin: '0 0 0.2rem 0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}>
+                              <X size={11} strokeWidth={3} /> TRÁNH LÀM
+                            </h5>
+                            <ul style={{ margin: 0, paddingLeft: '0.85rem', fontSize: '0.68rem', color: 'var(--jp-text)', lineHeight: '1.35', maxHeight: '72px', overflowY: 'auto' }}>
+                              {(item.donts || []).map((dontItem, index) => (
+                                <li key={index} style={{ marginBottom: '2px' }}>{dontItem}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Challenge start trigger or default footer */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', borderTop: '1px solid var(--jp-border)', paddingTop: '0.4rem', marginTop: 'auto' }}>
+                        {item.scenarios && item.scenarios.length > 0 && (
+                          <button
+                            onClick={(e) => handleStartCardQuiz(e, item.id)}
+                            style={{
+                              width: '100%',
+                              padding: '0.45rem 0',
+                              background: 'var(--jp-blue-light)',
+                              color: 'var(--jp-blue)',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px'
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(15, 44, 89, 0.08)'}
+                            onMouseLeave={(e) => e.target.style.background = 'var(--jp-blue-light)'}
+                          >
+                            🎯 Làm thử thách riêng ({item.scenarios.length} câu)
+                          </button>
+                        )}
+
+                        <div style={{
+                          textAlign: 'center',
+                          fontSize: '0.68rem',
+                          color: 'var(--jp-text-muted)',
+                          paddingTop: '2px'
+                        }}>
+                          Click vào vùng trống để lật lại mặt trước
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* Interactive Quiz Modal/Overlay */}
+      {practiceItem && createPortal(
+        <div
+          className="modal-overlay"
+          onClick={closePractice}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+        >
+          <div
+            className="modal-content page-transition"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '600px',
+              width: '100%',
+              background: 'var(--jp-card-bg)',
+              border: '1px solid var(--jp-border)',
+              borderRadius: '16px',
+              padding: '1.75rem',
+              boxShadow: 'var(--jp-shadow-lg)',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem'
+            }}
+          >
+            <button
+              className="close-btn"
+              onClick={closePractice}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                border: 'none',
+                background: 'none',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                color: 'var(--jp-text-muted)'
+              }}
+            >
+              &times;
+            </button>
+
+            {!isQuizFinished ? (
+              <>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--jp-red)', fontWeight: 800 }}>
+                    {practiceItem.id === 'general-challenge' ? '🏆 THỬ THÁCH TỔNG HỢP' : '🎯 LUYỆN TẬP'}
+                  </span>
+                  <h3 style={{ margin: '0.2rem 0 0.5rem 0', fontSize: '1.2rem', color: 'var(--jp-text)' }}>
+                    {practiceItem.titleVi}
+                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--jp-text-muted)' }}>
+                    <span>Tình huống {currentScenarioIdx + 1}/{practiceItem.scenarios.length}</span>
+                    <span>Đúng: {quizScore}/{currentScenarioIdx + (selectedOptionIdx !== null ? 1 : 0)}</span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '0.9rem', lineHeight: '1.5', margin: 0, color: 'var(--jp-text)', fontWeight: 600 }}>
+                  {practiceItem.scenarios[currentScenarioIdx].situation}
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {practiceItem.scenarios[currentScenarioIdx].options.map((option, idx) => {
+                    const isSelected = selectedOptionIdx === idx;
+                    const isCorrect = practiceItem.scenarios[currentScenarioIdx].correctOption === idx;
+                    const hasAnswered = selectedOptionIdx !== null;
+
+                    let btnBg = 'var(--jp-surface)';
+                    let btnBorder = '1px solid var(--jp-border)';
+                    let btnColor = 'var(--jp-text)';
+
+                    if (hasAnswered) {
+                      if (isCorrect) {
+                        btnBg = 'rgba(46, 204, 113, 0.15)';
+                        btnBorder = '1px solid #2ecc71';
+                        btnColor = '#27ae60';
+                      } else if (isSelected) {
+                        btnBg = 'rgba(188, 0, 45, 0.1)';
+                        btnBorder = '1px solid var(--jp-red)';
+                        btnColor = 'var(--jp-red)';
+                      } else {
+                        btnBg = 'var(--jp-surface)';
+                        btnColor = 'var(--jp-text-muted)';
+                        btnBorder = '1px solid var(--jp-border)';
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleSelectOption(idx)}
+                        disabled={hasAnswered}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1rem',
+                          borderRadius: '8px',
+                          border: btnBorder,
+                          background: btnBg,
+                          color: btnColor,
+                          fontSize: '0.85rem',
+                          fontWeight: isSelected || (hasAnswered && isCorrect) ? 700 : 500,
+                          textAlign: 'left',
+                          cursor: hasAnswered ? 'default' : 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {idx === 0 ? 'A. ' : idx === 1 ? 'B. ' : 'C. '} {option}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedOptionIdx !== null && (
+                  <div style={{
+                    background: 'var(--jp-soft-surface)',
+                    border: '1px solid var(--jp-border)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    lineHeight: '1.4',
+                    color: 'var(--jp-text)'
+                  }}>
+                    <strong style={{ display: 'block', color: 'var(--jp-blue)', marginBottom: '0.25rem' }}>
+                      💡 Giải thích chi tiết:
+                    </strong>
+                    {practiceItem.scenarios[currentScenarioIdx].explanation}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--jp-border)', paddingTop: '0.75rem' }}>
+                  <button
+                    disabled={selectedOptionIdx === null}
+                    onClick={handleNextScenario}
+                    style={{
+                      padding: '0.5rem 1.25rem',
+                      background: selectedOptionIdx === null ? 'var(--jp-border)' : 'var(--jp-blue)',
+                      color: selectedOptionIdx === null ? 'var(--jp-text-muted)' : 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: selectedOptionIdx === null ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      transition: 'background 0.2s'
+                    }}
+                  >
+                    {currentScenarioIdx === practiceItem.scenarios.length - 1 ? 'Xem kết quả' : 'Tình huống tiếp theo'} &rarr;
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                <span style={{ fontSize: '3.5rem', display: 'block', marginBottom: '0.5rem' }}>
+                  {quizScore === practiceItem.scenarios.length ? '🎉' : '👍'}
+                </span>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.5rem 0', color: 'var(--jp-text)' }}>
+                  Thử thách hoàn thành!
+                </h3>
+                <p style={{ fontSize: '0.95rem', color: 'var(--jp-text-muted)', margin: '0 0 1.25rem 0' }}>
+                  Bạn trả lời đúng <strong>{quizScore}/{practiceItem.scenarios.length}</strong> tình huống.
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                  <button
+                    onClick={closePractice}
+                    style={{
+                      padding: '0.55rem 1.5rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--jp-border)',
+                      background: 'none',
+                      color: 'var(--jp-text)',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Xem sổ tay
+                  </button>
+                  <button
+                    onClick={resetPractice}
+                    style={{
+                      padding: '0.55rem 1.5rem',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'var(--jp-red)',
+                      color: 'white',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Leaderboard Modal Portal */}
+      {showLeaderboardModal && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            animation: isLeaderboardClosing ? 'fadeOut 0.25s ease-in forwards' : 'fadeIn 0.25s ease-out forwards'
+          }}
+          onClick={handleCloseLeaderboard}
+        >
+          <div
+            className="leaderboard-modal-card"
+            style={{
+              width: '90%',
+              maxWidth: '450px',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              boxShadow: '0 24px 50px rgba(0, 0, 0, 0.15)',
+              padding: '1.75rem',
+              color: 'var(--jp-text)',
+              animation: isLeaderboardClosing ? 'scaleDown 0.25s ease-in forwards' : 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              position: 'relative',
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={handleCloseLeaderboard}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(0,0,0,0.05)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                color: 'var(--jp-text-muted)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(231, 76, 60, 0.1)';
+                e.target.style.color = 'var(--jp-red)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(0,0,0,0.05)';
+                e.target.style.color = 'var(--jp-text-muted)';
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem' }}>🏆</span>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                color: 'var(--jp-blue)',
+                margin: 0,
+                letterSpacing: '-0.3px'
+              }}>
+                Bảng Xếp Hạng Lễ Nghi
+              </h3>
+              <p style={{
+                fontSize: '0.75rem',
+                color: 'var(--jp-text-muted)',
+                margin: '4px 0 0 0'
+              }}>
+                Nền tảng NihonBot · Học viên xuất sắc nhất
+              </p>
+            </div>
+
+            {/* Leaderboard List */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.6rem',
+              paddingRight: '4px',
+              marginRight: '-4px'
+            }}>
+              {leaderboard.map((u, idx) => {
+                const isMe = u.isMe;
+                const isTop3 = idx < 3;
+                return (
+                  <div
+                    key={idx}
+                    className={`leaderboard-modal-item ${isMe ? 'is-me' : isTop3 ? 'top-three' : ''}`}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '16px',
+                      fontSize: '0.85rem',
+                      color: isMe ? 'var(--jp-red)' : 'var(--jp-text)',
+                      fontWeight: isMe ? 800 : 500,
+                      transition: 'transform 0.2s'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{
+                        width: '24px',
+                        fontWeight: 800,
+                        fontSize: isTop3 ? '1.15rem' : '0.8rem',
+                        color: 'var(--jp-text-muted)'
+                      }}>
+                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
+                      </span>
+                      {u.avatar && (u.avatar.startsWith('data:') || u.avatar.startsWith('http') || u.avatar.startsWith('https')) ? (
+                        <img
+                          src={u.avatar}
+                          alt="avatar"
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            border: '1.5px solid var(--jp-border)'
+                          }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '1.25rem' }}>{u.avatar || '🧑‍💻'}</span>
+                      )}
+                      <span style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '180px'
+                      }}>
+                        {u.name && u.name.startsWith('data:image') ? 'Học viên' : u.name}
+                        {isMe && <span style={{
+                          fontSize: '0.62rem',
+                          background: 'var(--jp-red)',
+                          color: 'white',
+                          padding: '1px 6px',
+                          borderRadius: '10px',
+                          marginLeft: '6px',
+                          fontWeight: 700
+                        }}>Bạn</span>}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{u.score}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--jp-text-muted)' }}>điểm</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              textAlign: 'center',
+              marginTop: '1.25rem',
+              fontSize: '0.7rem',
+              color: 'var(--jp-text-muted)'
+            }}>
+              💡 Tích lũy thêm điểm bằng cách tham gia Thử thách tổng hợp!
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Badges Modal Portal */}
+      {showBadgesModal && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            animation: isBadgesClosing ? 'fadeOut 0.25s ease-in forwards' : 'fadeIn 0.25s ease-out forwards'
+          }}
+          onClick={handleCloseBadgesModal}
+        >
+          <div
+            className="leaderboard-modal-card"
+            style={{
+              width: '90%',
+              maxWidth: '450px',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              boxShadow: '0 24px 50px rgba(0, 0, 0, 0.15)',
+              padding: '1.75rem',
+              color: 'var(--jp-text)',
+              animation: isBadgesClosing ? 'scaleDown 0.25s ease-in forwards' : 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              position: 'relative',
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={handleCloseBadgesModal}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(0,0,0,0.05)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                color: 'var(--jp-text-muted)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(231, 76, 60, 0.1)';
+                e.target.style.color = 'var(--jp-red)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(0,0,0,0.05)';
+                e.target.style.color = 'var(--jp-text-muted)';
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem' }}>🏆</span>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                color: 'var(--jp-blue)',
+                margin: 0,
+                letterSpacing: '-0.3px'
+              }}>
+                Danh Sách Danh Hiệu
+              </h3>
+              <p style={{
+                fontSize: '0.75rem',
+                color: 'var(--jp-text-muted)',
+                margin: '4px 0 0 0'
+              }}>
+                Tích lũy tiến độ học tập để mở khóa
+              </p>
+            </div>
+
+            {/* Badges List */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              paddingRight: '4px',
+              marginRight: '-4px'
+            }}>
+              {badgesList.map((badge) => {
+                const isUnlocked = badge.check();
+                return (
+                  <div
+                    key={badge.id}
+                    className="leaderboard-modal-item"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '16px',
+                      opacity: isUnlocked ? 1 : 0.5,
+                      border: isUnlocked ? `1px solid ${badge.color}33` : '1px solid var(--jp-border)',
+                      background: isUnlocked ? `${badge.color}08` : 'var(--jp-surface)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{
+                        fontSize: '1.6rem',
+                        filter: isUnlocked ? 'none' : 'grayscale(100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: isUnlocked ? badge.bg : 'var(--jp-bg)',
+                        border: isUnlocked ? `1px solid ${badge.color}1a` : 'none'
+                      }}>
+                        {badge.icon}
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          color: isUnlocked ? badge.color : 'var(--jp-text)'
+                        }}>
+                          {badge.name}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--jp-text-muted)' }}>
+                          {badge.desc}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      {isUnlocked ? (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          color: '#27ae60',
+                          background: 'rgba(46, 204, 113, 0.1)',
+                          padding: '3px 8px',
+                          borderRadius: '20px'
+                        }}>
+                          Đã mở khóa
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          color: 'var(--jp-text-muted)',
+                          background: 'var(--jp-bg)',
+                          padding: '3px 8px',
+                          borderRadius: '20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px'
+                        }}>
+                          🔒 Khóa
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Keyframe animations and dark mode overrides for modal and dashboard */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        @keyframes scaleUp {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes scaleDown {
+          from { transform: scale(1); opacity: 1; }
+          to { transform: scale(0.95); opacity: 0; }
+        }
+
+        /* Progress Dashboard glassmorphism themes */
+        .progress-dashboard {
+          background: rgba(255, 255, 255, 0.75);
+          border: 1px solid rgba(255, 255, 255, 0.45);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+        }
+        :root[data-theme="dark"] .progress-dashboard {
+          background: rgba(26, 29, 46, 0.75);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Leaderboard Modal glassmorphism themes */
+        .leaderboard-modal-card {
+          background: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        :root[data-theme="dark"] .leaderboard-modal-card {
+          background: rgba(26, 29, 46, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Modal list items themes */
+        .leaderboard-modal-item {
+          background: rgba(255, 255, 255, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .leaderboard-modal-item.top-three {
+          background: rgba(255, 255, 255, 0.6);
+        }
+        .leaderboard-modal-item.is-me {
+          background: linear-gradient(135deg, rgba(188, 0, 45, 0.08) 0%, rgba(188, 0, 45, 0.03) 100%);
+          border: 1px solid rgba(188, 0, 45, 0.2);
+          box-shadow: 0 4px 15px rgba(188, 0, 45, 0.05);
+        }
+
+        :root[data-theme="dark"] .leaderboard-modal-item {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        :root[data-theme="dark"] .leaderboard-modal-item.top-three {
+          background: rgba(255, 255, 255, 0.07);
+        }
+        :root[data-theme="dark"] .leaderboard-modal-item.is-me {
+          background: linear-gradient(135deg, rgba(232, 54, 93, 0.15) 0%, rgba(232, 54, 93, 0.05) 100%);
+          border: 1px solid rgba(232, 54, 93, 0.3);
+          box-shadow: 0 4px 15px rgba(232, 54, 93, 0.08);
+        }
+
+        /* Leaderboard View More button styling */
+        .leaderboard-view-more {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: 100%;
+          margin-top: 0.6rem;
+          padding: 0.5rem 1rem;
+          background: rgba(52, 152, 219, 0.08);
+          border: 1px solid rgba(52, 152, 219, 0.18);
+          color: var(--jp-blue);
+          border-radius: 12px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .leaderboard-view-more:hover {
+          background: var(--jp-blue);
+          color: white;
+          border-color: var(--jp-blue);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+        }
+
+        .leaderboard-view-more:active {
+          transform: translateY(0);
+        }
+
+        /* Dark mode overrides */
+        :root[data-theme="dark"] .leaderboard-view-more {
+          background: rgba(52, 152, 219, 0.12);
+          border: 1px solid rgba(52, 152, 219, 0.25);
+          color: #3498db;
+        }
+
+        :root[data-theme="dark"] .leaderboard-view-more:hover {
+          background: #3498db;
+          color: white;
+          border-color: #3498db;
+        }
+
+        /* Badges Guide Button styling */
+        .badges-guide-btn {
+          background: rgba(52, 152, 219, 0.08);
+          border: 1px solid rgba(52, 152, 219, 0.2);
+          color: var(--jp-blue);
+          font-family: inherit;
+          font-size: 0.8rem;
+          font-weight: 700;
+          padding: 3px 10px;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          margin-left: auto;
+          text-decoration: none;
+        }
+
+        .badges-guide-btn:hover {
+          background: var(--jp-blue);
+          color: white;
+          border-color: var(--jp-blue);
+          transform: scale(1.05);
+          box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+        }
+
+        .badges-guide-btn:active {
+          transform: scale(0.98);
+        }
+
+        /* Dark mode overrides */
+        :root[data-theme="dark"] .badges-guide-btn {
+          background: rgba(52, 152, 219, 0.12);
+          border: 1px solid rgba(52, 152, 219, 0.25);
+          color: #3498db;
+        }
+
+        :root[data-theme="dark"] .badges-guide-btn:hover {
+          background: #3498db;
+          color: white;
+          border-color: #3498db;
+        }
+
+        /* Card Bookmark Button styling */
+        .card-bookmark-btn {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          background: rgba(255, 255, 255, 0.95);
+          border: 1px solid var(--jp-border);
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          padding: 0;
+          margin: 0;
+          box-sizing: border-box;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+          transition: all 0.2s ease;
+          z-index: 10;
+        }
+
+        /* Dark mode overrides */
+        :root[data-theme="dark"] .card-bookmark-btn {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        :root[data-theme="dark"] .card-bookmark-btn:hover {
+          background: rgba(255, 255, 255, 0.15);
+          transform: scale(1.15);
+        }
+      `}</style>
     </div>
   );
 }

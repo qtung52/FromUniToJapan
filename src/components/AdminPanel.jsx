@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, BookOpen, Award, CheckCircle, FileText, Trash2, Edit3, X, Upload, Users, Key, BarChart2, MessageSquare, LayoutTemplate, ChevronDown, ChevronUp, Heart, MessageCircle } from 'lucide-react';
+import { Plus, BookOpen, Award, CheckCircle, FileText, Trash2, Edit3, X, Upload, Users, Key, BarChart2, MessageSquare, LayoutTemplate, ChevronDown, ChevronUp, Heart, MessageCircle, HelpCircle } from 'lucide-react';
 import { getSharedArray, setSharedArray } from '../lib/sharedStore';
+import { MANNERS_DATA } from '../data/mannersData';
 import CustomDropdown from './CustomDropdown';
 
 export default function AdminPanel({ 
   currentUser,
   onUpdateProfile,
   dictionary, 
-  roleplay, 
   onAddDictionary, 
   onUpdateDictionary,
   onDeleteDictionary,
-  onAddRoleplay, 
-  onUpdateRoleplay,
-  onDeleteRoleplay,
   onViewProfile
 }) {
   const [activeTab, setActiveTab] = useState('dashboard'); // Default to dashboard
@@ -67,6 +64,153 @@ export default function AdminPanel({
   
   // Image states (supporting base64 file upload or URL)
   const [roleImageUrl, setRoleImageUrl] = useState('');
+
+  // Challenge Scenarios management state
+  const [scenariosList, setScenariosList] = useState([]); // flat list from sharedStore
+  const [editingScenarioId, setEditingScenarioId] = useState(null);
+  const [scenCardId, setScenCardId] = useState('');
+  const [scenSituation, setScenSituation] = useState('');
+  const [scenOpt0, setScenOpt0] = useState('');
+  const [scenOpt1, setScenOpt1] = useState('');
+  const [scenOpt2, setScenOpt2] = useState('');
+  const [scenCorrect, setScenCorrect] = useState(0);
+  const [scenExplanation, setScenExplanation] = useState('');
+  const [scenFilterCard, setScenFilterCard] = useState('all');
+
+  useEffect(() => {
+    let mounted = true;
+    const loadScenarios = async () => {
+      const saved = await getSharedArray('dict_scenarios', []);
+      if (mounted) setScenariosList(saved);
+    };
+    loadScenarios();
+    return () => { mounted = false; };
+  }, []);
+
+  const combinedScenarios = React.useMemo(() => {
+    const builtIn = [];
+    MANNERS_DATA.forEach(card => {
+      if (Array.isArray(card.scenarios)) {
+        card.scenarios.forEach((scen, idx) => {
+          builtIn.push({
+            id: `built-in-${card.id}-${idx}`,
+            cardId: card.id,
+            situation: scen.situation,
+            options: scen.options,
+            correctOption: scen.correctOption,
+            explanation: scen.explanation,
+            isBuiltIn: true
+          });
+        });
+      }
+    });
+
+    let list = [...builtIn];
+    scenariosList.forEach(custom => {
+      if (custom.isDeleted) {
+        list = list.filter(item => item.id !== custom.id);
+      } else {
+        const idx = list.findIndex(item => item.id === custom.id);
+        if (idx !== -1) {
+          list[idx] = {
+            ...list[idx],
+            ...custom,
+            isBuiltIn: false
+          };
+        } else {
+          list.push({
+            ...custom,
+            isBuiltIn: false
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [scenariosList]);
+
+  const resetScenForm = () => {
+    setEditingScenarioId(null);
+    setScenCardId('');
+    setScenSituation('');
+    setScenOpt0('');
+    setScenOpt1('');
+    setScenOpt2('');
+    setScenCorrect(0);
+    setScenExplanation('');
+  };
+
+  const startEditScenario = (s) => {
+    setEditingScenarioId(s.id);
+    setScenCardId(s.cardId);
+    setScenSituation(s.situation);
+    setScenOpt0(s.options[0] || '');
+    setScenOpt1(s.options[1] || '');
+    setScenOpt2(s.options[2] || '');
+    setScenCorrect(s.correctOption);
+    setScenExplanation(s.explanation);
+  };
+
+  const handleScenSubmit = async (e) => {
+    e.preventDefault();
+    if (!scenCardId || !scenSituation || !scenOpt0 || !scenOpt1 || !scenOpt2) return;
+    
+    const newScen = {
+      id: editingScenarioId !== null ? editingScenarioId : `scen-custom-${Date.now()}`,
+      cardId: scenCardId,
+      situation: scenSituation,
+      options: [scenOpt0, scenOpt1, scenOpt2],
+      correctOption: scenCorrect,
+      explanation: scenExplanation
+    };
+
+    let updated;
+    const isEditing = editingScenarioId !== null;
+    const existsInDb = scenariosList.some(s => s.id === editingScenarioId);
+
+    if (isEditing) {
+      if (existsInDb) {
+        updated = scenariosList.map(s => s.id === editingScenarioId ? newScen : s);
+      } else {
+        updated = [...scenariosList, newScen];
+      }
+      setNotification('Đã cập nhật câu hỏi thành công!');
+    } else {
+      updated = [...scenariosList, newScen];
+      setNotification('Đã thêm câu hỏi mới thành công!');
+    }
+
+    await setSharedArray('dict_scenarios', updated);
+    setScenariosList(updated);
+    setTimeout(() => setNotification(''), 3000);
+    resetScenForm();
+  };
+
+  const handleDeleteScenario = async (id) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa câu hỏi này?')) {
+      let updated;
+      if (id.startsWith('built-in-')) {
+        const exists = scenariosList.some(s => s.id === id);
+        if (exists) {
+          updated = scenariosList.map(s => s.id === id ? { ...s, isDeleted: true } : s);
+        } else {
+          const cardId = MANNERS_DATA.find(c => id.startsWith(`built-in-${c.id}-`))?.id || '';
+          updated = [...scenariosList, { id, cardId, isDeleted: true }];
+        }
+      } else {
+        updated = scenariosList.filter(s => s.id !== id);
+      }
+      await setSharedArray('dict_scenarios', updated);
+      setScenariosList(updated);
+      setNotification('Đã xóa câu hỏi thành công!');
+      setTimeout(() => setNotification(''), 3000);
+      
+      if (editingScenarioId === id) {
+        resetScenForm();
+      }
+    }
+  };
+
 
   const [notification, setNotification] = useState('');
 
@@ -128,6 +272,7 @@ export default function AdminPanel({
     e.preventDefault();
     if (!dictTitleJp || !dictTitleVi || !dictFrontDesc) return;
 
+    const oldItem = dictionary.find(item => item.id === editingDictId) || {};
     const newItem = {
       id: editingDictId !== null ? editingDictId : `custom-dict-${Date.now()}`,
       category: dictCategory,
@@ -135,7 +280,8 @@ export default function AdminPanel({
       titleVi: dictTitleVi,
       frontDesc: dictFrontDesc,
       dos: dictDos.split('\n').filter(line => line.trim() !== ''),
-      donts: dictDonts.split('\n').filter(line => line.trim() !== '')
+      donts: dictDonts.split('\n').filter(line => line.trim() !== ''),
+      scenarios: oldItem.scenarios || []
     };
 
     if (editingDictId !== null) {
@@ -428,8 +574,8 @@ export default function AdminPanel({
         <button className={`tab-btn ${activeTab === 'dict' ? 'active' : ''}`} onClick={() => switchTab('dict')}>
           <BookOpen size={14} style={{ display: 'inline', marginRight: '5px' }} /> Sổ tay văn hóa
         </button>
-        <button className={`tab-btn ${activeTab === 'role' ? 'active' : ''}`} onClick={() => switchTab('role')}>
-          <Award size={14} style={{ display: 'inline', marginRight: '5px' }} /> Tình huống
+        <button className={`tab-btn ${activeTab === 'scenarios' ? 'active' : ''}`} onClick={() => switchTab('scenarios')}>
+          <HelpCircle size={14} style={{ display: 'inline', marginRight: '5px' }} /> Câu hỏi thử thách ({combinedScenarios.length})
         </button>
       </div>
 
@@ -454,7 +600,7 @@ export default function AdminPanel({
               <div style={{ color: 'var(--jp-text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>Bình luận Góc Senpai</div>
             </div>
             <div style={{ background: 'var(--jp-soft-surface)', border: '1px solid var(--jp-border)', padding: '1.5rem', borderRadius: 'var(--jp-radius)', textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: '#2ecc71' }}>{dictionary.length + roleplay.length}</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: '#2ecc71' }}>{dictionary.length}</div>
               <div style={{ color: 'var(--jp-text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>Nội dung bài học</div>
             </div>
           </div>
@@ -899,259 +1045,291 @@ export default function AdminPanel({
         </div>
       )}
 
-      {(activeTab === 'dict' || activeTab === 'role') && (
+      {activeTab === 'dict' && (
         <div className="admin-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }}>
           {/* Left Side: Creation/Update Forms */}
           <div className="admin-card">
-            {activeTab === 'dict' ? (
-              <form onSubmit={handleAddDictSubmit}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <h3 style={{ color: 'var(--jp-blue)', fontSize: '1.1rem' }}>
-                    {editingDictId !== null ? 'Chỉnh sửa thẻ quy tắc' : 'Thêm quy tắc văn hóa (Flashcard) mới'}
-                  </h3>
-                  {editingDictId !== null ? (
-                    <button type="button" className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'var(--jp-red)' }} onClick={resetDictForm}>
-                      <X size={12} /> Hủy sửa
-                    </button>
-                  ) : (
-                    <button type="button" className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={loadDictTemplate}>
-                      <FileText size={12} /> Tải mẫu nhanh
-                    </button>
-                  )}
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Danh mục</label>
-                  <CustomDropdown
-                    options={[
-                      { value: 'ojigi', label: 'Cúi chào (Ojigi)' },
-                      { value: 'meishi', label: 'Danh thiếp (Meishi)' },
-                      { value: 'seating', label: 'Ghế ngồi (Kamiza)' },
-                      { value: 'dresscode', label: 'Trang phục (Dresscode)' },
-                      { value: 'nomikai', label: 'Tiệc rượu (Nomikai)' },
-                      { value: 'email_phone', label: 'Email & Điện thoại (Email & Phone)' },
-                      { value: 'omiyage', label: 'Công tác & Quà cáp (Omiyage)' },
-                      { value: 'workrules', label: 'Quy tắc làm việc (Work Rules)' }
-                    ]}
-                    value={dictCategory}
-                    onChange={setDictCategory}
-                  />
-                </div>
-
-                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Tên Tiếng Nhật (Kanji/Kana)</label>
-                    <input type="text" className="form-input" value={dictTitleJp} onChange={(e) => setDictTitleJp(e.target.value)} placeholder="例: 名刺交換" required />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Tên Tiếng Việt</label>
-                    <input type="text" className="form-input" value={dictTitleVi} onChange={(e) => setDictTitleVi(e.target.value)} placeholder="Ví dụ: Trao đổi danh thiếp" required />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Mô tả tóm tắt (Mặt trước card)</label>
-                  <input type="text" className="form-input" value={dictFrontDesc} onChange={(e) => setDictFrontDesc(e.target.value)} placeholder="Ghi mô tả ngắn gọn..." required />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Quy tắc NÊN LÀM (Ghi mỗi quy tắc một dòng)</label>
-                  <textarea className="form-textarea" value={dictDos} onChange={(e) => setDictDos(e.target.value)} placeholder="Ví dụ:&#10;Dùng cả hai tay trao nhận&#10;Đưa danh thiếp thấp hơn đối tác..." required></textarea>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Quy tắc TRÁNH LÀM (Ghi mỗi quy tắc một dòng)</label>
-                  <textarea className="form-textarea" value={dictDonts} onChange={(e) => setDictDonts(e.target.value)} placeholder="Ví dụ:&#10;Không dùng một tay&#10;Không cất ngay vào ví..." required></textarea>
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                  <Plus size={16} /> {editingDictId !== null ? 'Lưu thay đổi' : 'Thêm Thẻ Quy Tắc'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleRoleSubmit}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <h3 style={{ color: 'var(--jp-blue)', fontSize: '1.1rem' }}>
-                    {editingRoleplayId !== null ? 'Chỉnh sửa tình huống' : 'Thêm tình huống trắc nghiệm mới'}
-                  </h3>
-                  {editingRoleplayId !== null ? (
-                    <button type="button" className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'var(--jp-red)' }} onClick={resetRoleForm}>
-                      <X size={12} /> Hủy sửa
+            <form onSubmit={handleAddDictSubmit}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ color: 'var(--jp-blue)', fontSize: '1.1rem' }}>
+                  {editingDictId !== null ? 'Chỉnh sửa thẻ quy tắc' : 'Thêm quy tắc văn hóa (Flashcard) mới'}
+                </h3>
+                {editingDictId !== null ? (
+                  <button type="button" className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'var(--jp-red)' }} onClick={resetDictForm}>
+                    <X size={12} /> Hủy sửa
                   </button>
-                  ) : (
-                    <button type="button" className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={loadRoleplayTemplate}>
-                      <FileText size={12} /> Tải mẫu nhanh
-                    </button>
-                  )}
+                ) : (
+                  <button type="button" className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={loadDictTemplate}>
+                    <FileText size={12} /> Tải mẫu nhanh
+                  </button>
+                )}
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Danh mục</label>
+                <CustomDropdown
+                  options={[
+                    { value: 'ojigi', label: 'Cúi chào (Ojigi)' },
+                    { value: 'meishi', label: 'Danh thiếp (Meishi)' },
+                    { value: 'seating', label: 'Ghế ngồi (Kamiza)' },
+                    { value: 'dresscode', label: 'Trang phục (Dresscode)' },
+                    { value: 'nomikai', label: 'Tiệc rượu (Nomikai)' },
+                    { value: 'email_phone', label: 'Email & Điện thoại (Email & Phone)' },
+                    { value: 'omiyage', label: 'Công tác & Quà cáp (Omiyage)' },
+                    { value: 'workrules', label: 'Quy tắc làm việc (Work Rules)' }
+                  ]}
+                  value={dictCategory}
+                  onChange={setDictCategory}
+                />
+              </div>
+
+              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Tên Tiếng Nhật (Kanji/Kana)</label>
+                  <input type="text" className="form-input" value={dictTitleJp} onChange={(e) => setDictTitleJp(e.target.value)} placeholder="例: 名刺交換" required />
                 </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Tiêu đề tình huống</label>
-                  <input type="text" className="form-input" value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="Ví dụ: Tình huống chào hỏi trong thang máy..." required />
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Tên Tiếng Việt</label>
+                  <input type="text" className="form-input" value={dictTitleVi} onChange={(e) => setDictTitleVi(e.target.value)} placeholder="Ví dụ: Trao đổi danh thiếp" required />
                 </div>
+              </div>
 
-                <div className="form-group">
-                  <label className="form-label">Mô tả ngữ cảnh tình huống</label>
-                  <textarea className="form-textarea" value={roleDesc} onChange={(e) => setRoleDesc(e.target.value)} placeholder="Mô tả cụ thể chuyện gì xảy ra, ai đang làm gì..." required></textarea>
-                </div>
+              <div className="form-group">
+                <label className="form-label">Mô tả tóm tắt (Mặt trước card)</label>
+                <input type="text" className="form-input" value={dictFrontDesc} onChange={(e) => setDictFrontDesc(e.target.value)} placeholder="Ghi mô tả ngắn gọn..." required />
+              </div>
 
-                <div className="form-group admin-upload-zone" style={{ background: 'var(--jp-soft-red)', padding: '1rem', borderRadius: 'var(--jp-radius)', border: '1px dashed var(--jp-red)', marginBottom: '1.5rem' }}>
-                  <label className="form-label" style={{ fontWeight: 700, color: 'var(--jp-red)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <Upload size={14} /> Ảnh minh họa Tình huống (Tải từ máy tính)
-                  </label>
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    onChange={handleImageFileChange}
-                    style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.85rem' }}
-                  />
-                  
-                  {roleImageUrl && (
-                    <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)', display: 'block', marginBottom: '0.25rem' }}>Ảnh đã chọn:</span>
-                      <img 
-                        src={roleImageUrl} 
-                        alt="Xem trước minh họa" 
-                        style={{ maxHeight: '100px', maxWidth: '100%', borderRadius: '4px', border: '1px solid var(--jp-border)' }}
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => setRoleImageUrl('')}
-                        style={{ display: 'block', margin: '0.25rem auto 0 auto', background: 'none', border: 'none', color: 'var(--jp-red)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
-                      >
-                        Xóa ảnh này
-                      </button>
-                    </div>
-                  )}
-                </div>
+              <div className="form-group">
+                <label className="form-label">Quy tắc NÊN LÀM (Ghi mỗi quy tắc một dòng)</label>
+                <textarea className="form-textarea" value={dictDos} onChange={(e) => setDictDos(e.target.value)} placeholder="Ví dụ:&#10;Dùng cả hai tay trao nhận&#10;Đưa danh thiếp thấp hơn đối tác..." required></textarea>
+              </div>
 
-                <div className="admin-options-panel" style={{ background: 'var(--jp-surface-raised)', padding: '1rem', borderRadius: 'var(--jp-radius)', marginBottom: '1.5rem' }}>
-                  <h4 style={{ fontSize: '0.85rem', color: 'var(--jp-blue)', marginBottom: '0.75rem', fontWeight: 700 }}>Thiết lập 3 Lựa chọn & Giải thích:</h4>
-                  
-                  <div className="form-group">
-                    <label className="form-label">Nội dung đáp án A</label>
-                    <input type="text" className="form-input" value={optAText} onChange={(e) => setOptAText(e.target.value)} required />
-                    <label className="form-label" style={{ fontWeight: 'normal', color: 'var(--jp-text-muted)', fontSize: '0.75rem' }}>Giải thích A (Tùy chọn)</label>
-                    <input type="text" className="form-input" value={optAExpl} onChange={(e) => setOptAExpl(e.target.value)} placeholder="Nếu để trống sẽ sử dụng giải thích tự động" />
-                  </div>
+              <div className="form-group">
+                <label className="form-label">Quy tắc TRÁNH LÀM (Ghi mỗi quy tắc một dòng)</label>
+                <textarea className="form-textarea" value={dictDonts} onChange={(e) => setDictDonts(e.target.value)} placeholder="Ví dụ:&#10;Không dùng một tay&#10;Không cất ngay vào ví..." required></textarea>
+              </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Nội dung đáp án B</label>
-                    <input type="text" className="form-input" value={optBText} onChange={(e) => setOptBText(e.target.value)} required />
-                    <label className="form-label" style={{ fontWeight: 'normal', color: 'var(--jp-text-muted)', fontSize: '0.75rem' }}>Giải thích B (Tùy chọn)</label>
-                    <input type="text" className="form-input" value={optBExpl} onChange={(e) => setOptBExpl(e.target.value)} placeholder="Nếu để trống sẽ sử dụng giải thích tự động" />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Nội dung đáp án C</label>
-                    <input type="text" className="form-input" value={optCText} onChange={(e) => setOptCText(e.target.value)} required />
-                    <label className="form-label" style={{ fontWeight: 'normal', color: 'var(--jp-text-muted)', fontSize: '0.75rem' }}>Giải thích C (Tùy chọn)</label>
-                    <input type="text" className="form-input" value={optCExpl} onChange={(e) => setOptCExpl(e.target.value)} placeholder="Nếu để trống sẽ sử dụng giải thích tự động" />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Đáp án đúng nhất</label>
-                    <CustomDropdown
-                      options={[
-                        { value: 'A', label: 'Đáp án A' },
-                        { value: 'B', label: 'Đáp án B' },
-                        { value: 'C', label: 'Đáp án C' }
-                      ]}
-                      value={correctOpt}
-                      onChange={setCorrectOpt}
-                    />
-                  </div>
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                  {editingRoleplayId !== null ? 'Cập nhật Tình huống' : 'Thêm Tình huống'}
-                </button>
-              </form>
-            )}
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                <Plus size={16} /> {editingDictId !== null ? 'Lưu thay đổi' : 'Thêm Thẻ Quy Tắc'}
+              </button>
+            </form>
           </div>
 
           {/* Right Side: Manage & Actions */}
           <div>
             <div className="admin-card" style={{ maxHeight: '780px', overflowY: 'auto' }}>
               <h3 style={{ color: 'var(--jp-blue)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Danh sách hiện tại</h3>
-              {activeTab === 'dict' ? (
-                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--jp-border)', textAlign: 'left' }}>
-                      <th style={{ padding: '0.5rem' }}>Tiếng Việt</th>
-                      <th style={{ padding: '0.5rem' }}>Danh mục</th>
-                      <th style={{ padding: '0.5rem', textAlign: 'center' }}>Thao tác</th>
+              <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--jp-border)', textAlign: 'left' }}>
+                    <th style={{ padding: '0.5rem' }}>Tiếng Việt</th>
+                    <th style={{ padding: '0.5rem' }}>Danh mục</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dictionary.map((item, idx) => (
+                    <tr key={item.id || idx} style={{ borderBottom: '1px solid var(--jp-border)' }}>
+                      <td style={{ padding: '0.5rem' }}>
+                        <div><strong>{item.titleVi}</strong></div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)' }}>{item.titleJp}</div>
+                      </td>
+                      <td style={{ padding: '0.5rem' }}><code>{item.category}</code></td>
+                      <td style={{ padding: '0.5rem', textAlign: 'center', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => startEditDict(item)}
+                          style={{ background: 'none', border: 'none', color: 'var(--jp-blue)', cursor: 'pointer' }}
+                          title="Sửa thẻ quy tắc"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDictItem(item.id)}
+                          style={{ background: 'none', border: 'none', color: 'var(--jp-red)', cursor: 'pointer' }}
+                          title="Xóa thẻ quy tắc"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {dictionary.map((item, idx) => (
-                      <tr key={item.id || idx} style={{ borderBottom: '1px solid var(--jp-border)' }}>
-                        <td style={{ padding: '0.5rem' }}>
-                          <div><strong>{item.titleVi}</strong></div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--jp-text-muted)' }}>{item.titleJp}</div>
-                        </td>
-                        <td style={{ padding: '0.5rem' }}><code>{item.category}</code></td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => startEditDict(item)}
-                            style={{ background: 'none', border: 'none', color: 'var(--jp-blue)', cursor: 'pointer' }}
-                            title="Sửa thẻ quy tắc"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDictItem(item.id)}
-                            style={{ background: 'none', border: 'none', color: 'var(--jp-red)', cursor: 'pointer' }}
-                            title="Xóa thẻ quy tắc"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--jp-border)', textAlign: 'left' }}>
-                      <th style={{ padding: '0.5rem' }}>Tên tình huống</th>
-                      <th style={{ padding: '0.5rem', textAlign: 'center' }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roleplay.map((scenario, idx) => (
-                      <tr key={scenario.id || idx} style={{ borderBottom: '1px solid var(--jp-border)' }}>
-                        <td style={{ padding: '0.5rem' }}>
-                          <strong>{scenario.title}</strong>
-                          {scenario.imageUrl && <span style={{ fontSize: '0.65rem', color: '#27ae60', marginLeft: '5px', fontWeight: 'bold' }}>(Đã đính kèm ảnh)</span>}
-                        </td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => startEditRoleplay(scenario)}
-                            style={{ background: 'none', border: 'none', color: 'var(--jp-blue)', cursor: 'pointer' }}
-                            title="Sửa tình huống"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteRoleItem(scenario.id)}
-                            style={{ background: 'none', border: 'none', color: 'var(--jp-red)', cursor: 'pointer' }}
-                            title="Xóa tình huống"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'scenarios' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem', alignItems: 'start' }}>
+          {/* LEFT: Form */}
+          <div className="admin-card" style={{ padding: '2rem' }}>
+            <h3 style={{ color: 'var(--jp-blue)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <HelpCircle size={20} />
+              {editingScenarioId ? 'Sửa câu hỏi' : 'Thêm câu hỏi mới'}
+            </h3>
+            <form onSubmit={handleScenSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '0.35rem', display: 'block' }}>Thẻ flashcard *</label>
+                <select
+                  value={scenCardId}
+                  onChange={e => setScenCardId(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '0.6rem 0.9rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)', background: 'var(--jp-surface)', color: 'var(--jp-text)', fontSize: '0.9rem' }}
+                >
+                  <option value="">-- Chọn thẻ --</option>
+                  {MANNERS_DATA.map(card => (
+                    <option key={card.id} value={card.id}>{card.titleVi} ({card.id})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '0.35rem', display: 'block' }}>Tình huống (câu hỏi) *</label>
+                <textarea
+                  value={scenSituation}
+                  onChange={e => setScenSituation(e.target.value)}
+                  required
+                  rows={3}
+                  placeholder="Mô tả tình huống cho học viên..."
+                  style={{ width: '100%', padding: '0.6rem 0.9rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)', background: 'var(--jp-surface)', color: 'var(--jp-text)', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              {[0, 1, 2].map(idx => (
+                <div key={idx}>
+                  <label style={{ fontSize: '0.85rem', color: scenCorrect === idx ? '#2ecc71' : 'var(--jp-text-muted)', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input type="radio" name="scenCorrect" value={idx} checked={scenCorrect === idx} onChange={() => setScenCorrect(idx)} />
+                    Đáp án {String.fromCharCode(65 + idx)} {scenCorrect === idx ? '✓ (Đúng)' : ''}
+                  </label>
+                  <input
+                    type="text"
+                    value={idx === 0 ? scenOpt0 : idx === 1 ? scenOpt1 : scenOpt2}
+                    onChange={e => idx === 0 ? setScenOpt0(e.target.value) : idx === 1 ? setScenOpt1(e.target.value) : setScenOpt2(e.target.value)}
+                    required
+                    placeholder={`Nội dung đáp án ${String.fromCharCode(65 + idx)}...`}
+                    style={{ width: '100%', padding: '0.6rem 0.9rem', borderRadius: 'var(--jp-radius)', border: `1px solid ${scenCorrect === idx ? '#2ecc71' : 'var(--jp-border)'}`, background: 'var(--jp-surface)', color: 'var(--jp-text)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '0.35rem', display: 'block' }}>Giải thích đáp án đúng</label>
+                <textarea
+                  value={scenExplanation}
+                  onChange={e => setScenExplanation(e.target.value)}
+                  rows={2}
+                  placeholder="Giải thích tại sao đáp án đó đúng..."
+                  style={{ width: '100%', padding: '0.6rem 0.9rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)', background: 'var(--jp-surface)', color: 'var(--jp-text)', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button type="submit" className="jp-btn jp-btn-primary" style={{ flex: 1 }}>
+                  <Plus size={16} /> {editingScenarioId ? 'Lưu thay đổi' : 'Thêm câu hỏi'}
+                </button>
+                {editingScenarioId && (
+                  <button type="button" onClick={resetScenForm} className="jp-btn" style={{ background: 'var(--jp-surface-raised)', color: 'var(--jp-text)' }}>
+                    <X size={16} /> Hủy
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* RIGHT: List */}
+          <div className="admin-card" style={{ padding: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h3 style={{ color: 'var(--jp-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <FileText size={20} /> Danh sách câu hỏi ({combinedScenarios.filter(s => scenFilterCard === 'all' || s.cardId === scenFilterCard).length})
+              </h3>
+              <select
+                value={scenFilterCard}
+                onChange={e => setScenFilterCard(e.target.value)}
+                style={{ padding: '0.4rem 0.7rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)', background: 'var(--jp-surface)', color: 'var(--jp-text)', fontSize: '0.85rem' }}
+              >
+                <option value="all">Tất cả thẻ</option>
+                {MANNERS_DATA.map(card => (
+                  <option key={card.id} value={card.id}>{card.titleVi}</option>
+                ))}
+              </select>
+            </div>
+            {combinedScenarios.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--jp-text-muted)' }}>
+                <HelpCircle size={40} style={{ marginBottom: '1rem', opacity: 0.3 }} />
+                <p>Chưa có câu hỏi nào.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '65vh', overflowY: 'auto' }}>
+                {combinedScenarios
+                  .filter(s => scenFilterCard === 'all' || s.cardId === scenFilterCard)
+                  .map((s, i) => {
+                    const card = MANNERS_DATA.find(c => c.id === s.cardId);
+                    
+                    // Determine badge
+                    let badge = null;
+                    if (s.id.startsWith('built-in-')) {
+                      // Check if it's edited by looking for its presence in scenariosList
+                      const isEdited = scenariosList.some(item => item.id === s.id && !item.isDeleted);
+                      if (isEdited) {
+                        badge = (
+                          <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', background: 'rgba(79, 142, 247, 0.1)', border: '1px solid rgba(79, 142, 247, 0.3)', color: 'var(--jp-blue)', marginLeft: '0.5rem', fontWeight: 600 }}>
+                            Đã chỉnh sửa
+                          </span>
+                        );
+                      } else {
+                        badge = (
+                          <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', background: 'var(--jp-soft-surface)', border: '1px solid var(--jp-border)', color: 'var(--jp-text-muted)', marginLeft: '0.5rem', fontWeight: 500 }}>
+                            Mặc định
+                          </span>
+                        );
+                      }
+                    } else {
+                      badge = (
+                        <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', background: 'rgba(46, 204, 113, 0.1)', border: '1px solid rgba(46, 204, 113, 0.3)', color: '#2ecc71', marginLeft: '0.5rem', fontWeight: 600 }}>
+                          Tùy chỉnh
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <div key={s.id} style={{ background: 'var(--jp-surface-raised)', border: '1px solid var(--jp-border)', borderRadius: 'var(--jp-radius)', padding: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.25rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--jp-blue)', fontWeight: 600 }}>
+                                {card ? card.titleVi : s.cardId}
+                              </span>
+                              {badge}
+                            </div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--jp-text)', marginBottom: '0.5rem' }}>
+                              {s.situation}
+                            </div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--jp-text-muted)' }}>
+                              {s.options.map((opt, oi) => (
+                                <div key={oi} style={{ color: oi === s.correctOption ? '#2ecc71' : 'inherit' }}>
+                                  {String.fromCharCode(65 + oi)}. {opt} {oi === s.correctOption ? '✓' : ''}
+                                </div>
+                              ))}
+                            </div>
+                            {s.explanation && (
+                              <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--jp-text-muted)', borderTop: '1px dashed var(--jp-border)', paddingTop: '0.25rem', fontStyle: 'italic' }}>
+                                Giải thích: {s.explanation}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                            <button onClick={() => startEditScenario(s)} style={{ background: 'none', border: 'none', color: 'var(--jp-blue)', cursor: 'pointer' }} title="Sửa">
+                              <Edit3 size={15} />
+                            </button>
+                            <button onClick={() => handleDeleteScenario(s.id)} style={{ background: 'none', border: 'none', color: 'var(--jp-red)', cursor: 'pointer' }} title="Xóa">
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         </div>
       )}

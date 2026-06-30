@@ -16,7 +16,7 @@ export default function Testimonials() {
       name: 'Hải Yến',
       school: 'ĐH Ngoại Ngữ - ĐHQGHN',
       avatar: '👩‍🎓',
-      text: '"Phần tạo CV (Rirekisho) thực sự cứu rỗi cuộc đời mình! Trước đây mình toàn loay hoay căn lề Word, giờ chỉ cần điền form là có ngay bản CV PDF chuẩn xác để nộp cho công ty IT."',
+      text: '"Phần thực hành trắc nghiệm tình huống thực tế vô cùng chi tiết! Mình đã hiểu rõ quy tắc cúi chào Ojigi và cách trao danh thiếp. Đi phỏng vấn, các sếp Nhật khen mình có tác phong rất chuyên nghiệp."',
       rating: 5
     },
     {

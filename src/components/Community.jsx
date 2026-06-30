@@ -419,6 +419,138 @@ export default function Community({ currentUser, onViewProfile }) {
     return fallbackRole || 'Học viên';
   };
 
+  const getSenpaiTrustInfo = (email) => {
+    const u = users.find(user => user.email === email);
+    if (!u || (!u.isSenpai && !u.isAdmin && u.customRole !== 'Senpai')) {
+      return null;
+    }
+
+    let totalReplies = 0;
+    let totalHelpfulVotes = 0;
+    
+    threads.forEach(thread => {
+      (thread.answers || []).forEach(answer => {
+        if (answer.authorEmail === email) {
+          totalReplies += 1;
+          if (Array.isArray(answer.helpfulVotes)) {
+            totalHelpfulVotes += answer.helpfulVotes.length;
+          }
+        }
+      });
+    });
+
+    const score = (totalReplies * 5) + (totalHelpfulVotes * 10);
+    
+    let badgeText = "Senpai Mới";
+    let badgeBg = "rgba(149, 165, 166, 0.1)"; 
+    let badgeBorder = "1px solid #7f8c8d";
+    let badgeColor = "#7f8c8d";
+    if (score >= 50) {
+      badgeText = "★ Senpai Uy Tín";
+      badgeBg = "rgba(188, 0, 45, 0.08)"; 
+      badgeBorder = "1px solid var(--jp-red)";
+      badgeColor = "var(--jp-red)";
+    } else if (score >= 15) {
+      badgeText = "★ Hoạt Động Tích Cực";
+      badgeBg = "rgba(15, 44, 89, 0.08)"; 
+      badgeBorder = "1px solid var(--jp-blue)";
+      badgeColor = "var(--jp-blue)";
+    }
+
+    return {
+      score,
+      badgeText,
+      badgeBg,
+      badgeBorder,
+      badgeColor,
+      selfDeclaredExperience: u.selfDeclaredExperience || "",
+      totalReplies,
+      totalHelpfulVotes
+    };
+  };
+
+  const renderSenpaiNametag = (email, fallbackRole) => {
+    const role = getUserRole(email, fallbackRole);
+    const trust = getSenpaiTrustInfo(email);
+
+    if (!trust) {
+      const isAdmin = role === 'Quản trị viên';
+      return (
+        <span className={`${styles.replyRole} ${isAdmin ? styles.admin : ''}`}>
+          {role}
+        </span>
+      );
+    }
+
+    const tooltipText = `Điểm hoạt động Senpai: ${trust.score}đ (+${trust.totalReplies * 5}đ từ ${trust.totalReplies} câu trả lời, +${trust.totalHelpfulVotes * 10}đ từ ${trust.totalHelpfulVotes} lượt bầu Hữu ích)`;
+
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+        {trust.selfDeclaredExperience && (
+          <span style={{ 
+            fontSize: '0.72rem', 
+            background: 'var(--jp-soft-surface)', 
+            border: '1px solid var(--jp-border)', 
+            padding: '0.1rem 0.4rem', 
+            borderRadius: '4px',
+            color: 'var(--jp-text-muted)',
+            fontWeight: 500
+          }} title="Kinh nghiệm tự khai">
+            💼 {trust.selfDeclaredExperience}
+          </span>
+        )}
+        <span 
+          title={tooltipText}
+          style={{ 
+            fontSize: '0.72rem', 
+            background: trust.badgeBg, 
+            border: trust.badgeBorder, 
+            color: trust.badgeColor, 
+            padding: '0.1rem 0.45rem', 
+            borderRadius: '4px',
+            fontWeight: 700,
+            cursor: 'help',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '2px'
+          }}
+        >
+          {trust.badgeText} ({trust.score}đ)
+        </span>
+      </span>
+    );
+  };
+
+  const handleHelpfulVote = async (threadId, replyId) => {
+    if (!currentUser) return;
+    const freshThreads = await getSharedArray('threads', []);
+    const updated = freshThreads.map(t => {
+      if (t.id === threadId) {
+        return {
+          ...t,
+          answers: (t.answers || []).map(ans => {
+            if (ans.id === replyId) {
+              const votes = Array.isArray(ans.helpfulVotes) ? ans.helpfulVotes : [];
+              const userEmail = currentUser.email;
+              const hasVoted = votes.includes(userEmail);
+              const updatedVotes = hasVoted 
+                ? votes.filter(email => email !== userEmail) 
+                : [...votes, userEmail];
+              return {
+                ...ans,
+                helpfulVotes: updatedVotes
+              };
+            }
+            return ans;
+          })
+        };
+      }
+      return t;
+    });
+
+    saveThreads(updated);
+  };
+
 
   const handleReplyTextChange = (threadId, val) => {
     setReplyTexts(prev => ({
@@ -618,12 +750,15 @@ export default function Community({ currentUser, onViewProfile }) {
                         {renderAvatar(thread.authorEmail, '1rem')}
                       </div>
                       <div className={styles.authorDetails}>
-                        <div 
-                          className={styles.authorName}
-                          onClick={() => onViewProfile && onViewProfile(thread.authorEmail, thread.author, getUserRole(thread.authorEmail))}
-                          title="Xem thông tin người dùng"
-                        >
-                          {thread.author}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span 
+                            className={styles.authorName}
+                            onClick={() => onViewProfile && onViewProfile(thread.authorEmail, thread.author, getUserRole(thread.authorEmail))}
+                            title="Xem thông tin người dùng"
+                          >
+                            {thread.author}
+                          </span>
+                          {renderSenpaiNametag(thread.authorEmail)}
                         </div>
                         <div className={styles.postMeta}>
                           <span>{timeAgo(thread.date)} ({formatAbsoluteTime(thread.date)})</span>
@@ -763,11 +898,28 @@ export default function Community({ currentUser, onViewProfile }) {
                                     >
                                       {ans.author}
                                     </span>
-                                    <span className={`${styles.replyRole} ${isAdmin ? styles.admin : isSenpai ? styles.senpai : ''}`}>
-                                      {displayRole}
-                                    </span>
+                                    {renderSenpaiNametag(ans.authorEmail, ans.role)}
                                   </div>
                                   <p className={styles.replyText}>{ans.content}</p>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+                                    <button
+                                      onClick={() => handleHelpfulVote(thread.id, ans.id)}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: ans.helpfulVotes?.includes(currentUser?.email) ? 'var(--jp-red)' : 'var(--jp-text-muted)',
+                                        fontSize: '0.75rem',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px',
+                                        fontWeight: 600,
+                                        padding: 0
+                                      }}
+                                    >
+                                      👍 Hữu ích {ans.helpfulVotes?.length > 0 && `(${ans.helpfulVotes.length})`}
+                                    </button>
+                                  </div>
                                 </div>
                                 
                                 {/* Reply Action menu dropdown */}

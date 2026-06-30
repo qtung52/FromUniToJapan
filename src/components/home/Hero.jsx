@@ -14,7 +14,7 @@ export default function Hero({ onViewChange }) {
             <span className={styles.textGradient}>Công sở Nhật Bản</span>
           </h1>
           <p className={styles.subtitle}>
-            Trải nghiệm học tập văn hóa doanh nghiệp Nhật Bản theo phong cách hoàn toàn mới. Nắm bắt quy tắc, luyện tập tình huống và tạo CV Rirekisho chỉ trong vài phút.
+            Trải nghiệm học tập văn hóa doanh nghiệp Nhật Bản theo phong cách hoàn toàn mới. Nắm bắt quy tắc ứng xử và thực hành giải quyết tình huống công sở chỉ trong vài phút.
           </p>
           <div className={styles.ctaGroup}>
             <button className={styles.btnPrimary} onClick={() => onViewChange('survey')}>

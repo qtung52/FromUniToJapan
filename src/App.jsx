@@ -3,18 +3,14 @@ import { X, Briefcase } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Home from './components/Home';
 import Survey from './components/Survey';
-import Dictionary, { MANNERS_DATA } from './components/Dictionary';
-import RolePlay, { SCENARIOS } from './components/RolePlay';
-import CVBuilder from './components/CVBuilder';
+import Dictionary from './components/Dictionary';
+import { MANNERS_DATA } from './data/mannersData';
 import Community from './components/Community';
 import Auth from './components/Auth';
 import AdminPanel from './components/AdminPanel';
 import Profile from './components/Profile';
 import ChatBox from './components/ChatBox';
 import { getSharedArray, seedSharedArray, setSharedArray } from './lib/sharedStore';
-
-const DEFAULT_DICT = MANNERS_DATA;
-const DEFAULT_ROLEPLAY = SCENARIOS;
 
 const viewToHash = (view) => {
   if (view === 'community') return 'senpai';
@@ -27,12 +23,68 @@ const hashToView = (hash) => {
 };
 
 function App() {
+  const mergeScenarios = (loadedDict, customScens = []) => {
+    if (!Array.isArray(loadedDict)) return [];
+    return loadedDict.filter(Boolean).map(item => {
+      const id = item?.id;
+      if (!id) return item;
+      
+      // 1. Get default scenarios for this card
+      const defaultItem = MANNERS_DATA.find(d => d.id === id);
+      let list = [];
+      if (defaultItem && Array.isArray(defaultItem.scenarios)) {
+        list = defaultItem.scenarios.map((scen, idx) => ({
+          id: `built-in-${id}-${idx}`,
+          cardId: id,
+          situation: scen.situation,
+          options: scen.options,
+          correctOption: scen.correctOption,
+          explanation: scen.explanation,
+          isBuiltIn: true
+        }));
+      }
+
+      // 2. Merge with custom scenarios overrides & additions
+      customScens.forEach(custom => {
+        if (custom.cardId !== id) return;
+        if (custom.isDeleted) {
+          list = list.filter(s => s.id !== custom.id);
+        } else {
+          const existingIdx = list.findIndex(s => s.id === custom.id);
+          if (existingIdx !== -1) {
+            list[existingIdx] = {
+              ...list[existingIdx],
+              ...custom,
+              isBuiltIn: false
+            };
+          } else {
+            list.push({
+              ...custom,
+              isBuiltIn: false
+            });
+          }
+        }
+      });
+
+      // 3. Return mapped dictionary item with updated scenarios array
+      return {
+        ...item,
+        scenarios: list.map(s => ({
+          situation: s.situation,
+          options: s.options,
+          correctOption: s.correctOption,
+          explanation: s.explanation
+        }))
+      };
+    });
+  };
+
   const [currentUser, setCurrentUser] = useState(null);
   const [activeView, setActiveView] = useState(() => {
     const session = localStorage.getItem('session_user');
     if (session) {
       const hash = window.location.hash.replace('#/', '').replace('#', '');
-      const validHashes = ['home', 'survey', 'dictionary', 'roleplay', 'cvbuilder', 'senpai', 'profile', 'admin'];
+      const validHashes = ['home', 'survey', 'dictionary', 'senpai', 'profile', 'admin'];
       if (hash && validHashes.includes(hash)) {
         return hashToView(hash);
       }
@@ -44,7 +96,6 @@ function App() {
 
   // Dynamic Content States — initialized with clean defaults
   const [dictionary, setDictionary] = useState([]);
-  const [roleplay, setRoleplay] = useState([]);
 
   // Roadmap & Survey states
   const [surveyScore, setSurveyScore] = useState(() => {
@@ -75,7 +126,7 @@ function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').replace('#', '');
-      const validHashes = ['auth', 'home', 'survey', 'dictionary', 'roleplay', 'cvbuilder', 'senpai', 'profile', 'admin'];
+      const validHashes = ['auth', 'home', 'survey', 'dictionary', 'senpai', 'profile', 'admin'];
       if (hash && validHashes.includes(hash)) {
         setActiveView(hashToView(hash));
       }
@@ -122,7 +173,7 @@ function App() {
         
         // Load active view from hash on initial load
         const hash = window.location.hash.replace('#/', '').replace('#', '');
-        const validHashes = ['home', 'survey', 'dictionary', 'roleplay', 'cvbuilder', 'senpai', 'profile', 'admin'];
+        const validHashes = ['home', 'survey', 'dictionary', 'senpai', 'profile', 'admin'];
         if (hash && validHashes.includes(hash)) {
           setActiveView(hashToView(hash));
         } else {
@@ -133,23 +184,28 @@ function App() {
       }
     }
 
-    seedSharedArray('dictionary', DEFAULT_DICT).then(setDictionary);
-    seedSharedArray('roleplay', DEFAULT_ROLEPLAY).then(setRoleplay);
+    Promise.all([
+      seedSharedArray('dictionary', MANNERS_DATA),
+      getSharedArray('dict_scenarios', [])
+    ]).then(([dictData, customScens]) => {
+      setDictionary(mergeScenarios(dictData, customScens));
+    });
   }, []);
 
   useEffect(() => {
-    if (activeView !== 'dictionary' && activeView !== 'roleplay' && activeView !== 'cvbuilder' && activeView !== 'admin') return;
+    if (activeView !== 'dictionary' && activeView !== 'admin') return;
 
     let isMounted = true;
     
     const refreshSharedContent = async () => {
       const dictData = await getSharedArray('dictionary', []);
-      const roleData = await getSharedArray('roleplay', []);
       const usersData = await getSharedArray('users', []);
+      const customScens = await getSharedArray('dict_scenarios', []);
       
       if (!isMounted) return;
-      if (Array.isArray(dictData) && dictData.length > 0) setDictionary(dictData);
-      if (Array.isArray(roleData) && roleData.length > 0) setRoleplay(roleData);
+      if (Array.isArray(dictData) && dictData.length > 0) {
+        setDictionary(mergeScenarios(dictData, customScens));
+      }
       
       if (currentUser && Array.isArray(usersData)) {
         const freshUserData = usersData.find(u => (u.email || '').trim().toLowerCase() === currentUser.email.trim().toLowerCase());
@@ -282,23 +338,7 @@ function App() {
     setSharedArray('dictionary', updated);
   };
 
-  const handleAddRoleplay = (newScenario) => {
-    const updated = [...roleplay, newScenario];
-    setRoleplay(updated);
-    setSharedArray('roleplay', updated);
-  };
 
-  const handleUpdateRoleplay = (updatedScenario) => {
-    const updated = roleplay.map(item => item.id === updatedScenario.id ? updatedScenario : item);
-    setRoleplay(updated);
-    setSharedArray('roleplay', updated);
-  };
-
-  const handleDeleteRoleplay = (id) => {
-    const updated = roleplay.filter(item => item.id !== id);
-    setRoleplay(updated);
-    setSharedArray('roleplay', updated);
-  };
 
   const handleSurveyComplete = (roadmap, score) => {
     setSurveyRoadmap(roadmap);
@@ -335,6 +375,22 @@ function App() {
 
     const users = await getSharedArray('users', []);
     const matchedUser = users.find(u => (u.email || '').trim().toLowerCase() === (email || '').trim().toLowerCase());
+    
+    const threads = await getSharedArray('threads', []);
+    let totalReplies = 0;
+    let totalHelpfulVotes = 0;
+    threads.forEach(thread => {
+      (thread.answers || []).forEach(answer => {
+        if (answer.authorEmail === email) {
+          totalReplies += 1;
+          if (Array.isArray(answer.helpfulVotes)) {
+            totalHelpfulVotes += answer.helpfulVotes.length;
+          }
+        }
+      });
+    });
+    const trustScore = (totalReplies * 5) + (totalHelpfulVotes * 10);
+
     if (matchedUser) {
       setProfileModalUser({
         name: matchedUser.name || fallbackName,
@@ -342,7 +398,10 @@ function App() {
         avatar: matchedUser.avatar || '🧑‍💻',
         bio: matchedUser.bio || 'Chưa cập nhật giới thiệu bản thân.',
         careerGoal: matchedUser.careerGoal || 'Học viên From Uni to Japan',
-        role: matchedUser.isAdmin ? 'Quản trị viên' : matchedUser.isSenpai ? 'Senpai' : 'Học viên'
+        role: matchedUser.isAdmin ? 'Quản trị viên' : matchedUser.isSenpai ? 'Senpai' : 'Học viên',
+        isSenpai: !!matchedUser.isSenpai,
+        selfDeclaredExperience: matchedUser.selfDeclaredExperience || '',
+        trustScore
       });
     } else if (email === 'admin@nihon.com') {
       setProfileModalUser({
@@ -351,10 +410,12 @@ function App() {
         avatar: '🦊',
         bio: 'Quản trị viên hệ thống From Uni to Japan. Rất vui được hỗ trợ và định hướng văn hóa cho các bạn Kouhai.',
         careerGoal: 'Lãnh đạo Giáo dục / Nhân sự Nhật Bản',
-        role: 'Quản trị viên'
+        role: 'Quản trị viên',
+        isSenpai: true,
+        selfDeclaredExperience: 'Hệ thống Admin',
+        trustScore: 999
       });
     } else {
-      // User not found in store — use fallback info from the post/comment metadata
       const isSenpaiRole = fallbackRole && (
         fallbackRole.includes('Senpai') ||
         fallbackRole.includes('Tech Lead') ||
@@ -366,7 +427,10 @@ function App() {
         avatar: '🧑‍💻',
         bio: 'Chưa cập nhật giới thiệu bản thân.',
         careerGoal: isSenpaiRole ? 'Senpai / Cố vấn chuyên môn' : 'Học viên From Uni to Japan',
-        role: fallbackRole || 'Học viên'
+        role: fallbackRole || 'Học viên',
+        isSenpai: !!isSenpaiRole,
+        selfDeclaredExperience: '',
+        trustScore
       });
     }
   };
@@ -390,10 +454,8 @@ function App() {
         return <Survey onComplete={handleSurveyComplete} />;
       case 'dictionary':
         return <Dictionary dictionary={dictionary} />;
-      case 'roleplay':
-        return <RolePlay roleplay={roleplay} />;
-      case 'cvbuilder':
-        return <CVBuilder />;
+
+
       case 'community':
         return <Community currentUser={currentUser} onViewProfile={handleOpenProfileModal} />;
       case 'profile':
@@ -404,13 +466,9 @@ function App() {
             currentUser={currentUser}
             onUpdateProfile={handleUpdateProfile}
             dictionary={dictionary}
-            roleplay={roleplay}
             onAddDictionary={handleAddDictionary}
             onUpdateDictionary={handleUpdateDictionary}
             onDeleteDictionary={handleDeleteDictionary}
-            onAddRoleplay={handleAddRoleplay}
-            onUpdateRoleplay={handleUpdateRoleplay}
-            onDeleteRoleplay={handleDeleteRoleplay}
             onViewProfile={handleOpenProfileModal}
           />
         ) : (
@@ -440,7 +498,7 @@ function App() {
         />
       )}
       
-      <main className={(activeView === 'home' || activeView === 'cvbuilder' || !currentUser) ? '' : 'container'} style={(activeView === 'home' || activeView === 'cvbuilder' || !currentUser) ? { padding: 0 } : { paddingTop: '2rem', paddingBottom: '4rem' }}>
+      <main className={(activeView === 'home' || !currentUser) ? '' : 'container'} style={(activeView === 'home' || !currentUser) ? { padding: 0 } : { paddingTop: '2rem', paddingBottom: '4rem' }}>
         <div key={activeView} className="page-transition">
           {renderView()}
         </div>
@@ -584,22 +642,71 @@ function App() {
                 <h3 style={{ color: 'var(--jp-blue)', fontSize: '1.35rem', fontWeight: 700, margin: '0 0 0.35rem 0', fontFamily: 'var(--font-japanese)' }}>
                   {profileModalUser.name}
                 </h3>
-                <span 
-                  className={profileModalUser.role === 'Quản trị viên' ? 'admin-rgb-tag' : ''}
-                  style={{
-                    display: 'inline-block',
-                    padding: '0.25rem 0.8rem',
-                    borderRadius: '20px',
-                    background: profileModalUser.role !== 'Quản trị viên' && (profileModalUser.role?.includes('Senpai') || profileModalUser.role?.includes('Tech Lead') || profileModalUser.role?.includes('Leader')) ? 'var(--jp-blue)' : profileModalUser.role !== 'Quản trị viên' ? 'var(--jp-border)' : undefined, 
-                    color: profileModalUser.role !== 'Quản trị viên' && (profileModalUser.role?.includes('Senpai') || profileModalUser.role?.includes('Tech Lead') || profileModalUser.role?.includes('Leader')) ? 'white' : profileModalUser.role !== 'Quản trị viên' ? 'var(--jp-text-muted)' : undefined,
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    border: 'none',
-                    letterSpacing: '0.03em'
-                  }}
-                >
-                  {profileModalUser.role}
-                </span>
+                {profileModalUser.isSenpai ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.2rem 0.75rem',
+                        borderRadius: '20px',
+                        background: 'var(--jp-blue)',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        fontWeight: 600
+                      }}>
+                        {profileModalUser.role}
+                      </span>
+                      {profileModalUser.selfDeclaredExperience && (
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '0.2rem 0.75rem',
+                          borderRadius: '20px',
+                          background: 'var(--jp-soft-surface)',
+                          border: '1px solid var(--jp-border)',
+                          color: 'var(--jp-text-muted)',
+                          fontSize: '0.75rem',
+                          fontWeight: 500
+                        }} title="Kinh nghiệm tự khai">
+                          💼 {profileModalUser.selfDeclaredExperience}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div 
+                      title={`Tổng điểm: ${profileModalUser.trustScore}đ`}
+                      style={{
+                        display: 'inline-block',
+                        padding: '0.25rem 0.8rem',
+                        borderRadius: '20px',
+                        background: profileModalUser.trustScore >= 50 ? 'rgba(188, 0, 45, 0.08)' : profileModalUser.trustScore >= 15 ? 'rgba(15, 44, 89, 0.08)' : 'rgba(149, 165, 166, 0.1)',
+                        border: profileModalUser.trustScore >= 50 ? '1px solid var(--jp-red)' : profileModalUser.trustScore >= 15 ? '1px solid var(--jp-blue)' : '1px solid #7f8c8d',
+                        color: profileModalUser.trustScore >= 50 ? 'var(--jp-red)' : profileModalUser.trustScore >= 15 ? 'var(--jp-blue)' : '#7f8c8d',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'help'
+                      }}
+                    >
+                      {profileModalUser.trustScore >= 50 ? '★ Senpai Uy Tín' : profileModalUser.trustScore >= 15 ? '★ Hoạt Động Tích Cực' : '★ Senpai Mới'} ({profileModalUser.trustScore}đ)
+                    </div>
+                  </div>
+                ) : (
+                  <span 
+                    className={profileModalUser.role === 'Quản trị viên' ? 'admin-rgb-tag' : ''}
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.25rem 0.8rem',
+                      borderRadius: '20px',
+                      background: profileModalUser.role === 'Quản trị viên' ? undefined : 'var(--jp-border)', 
+                      color: profileModalUser.role === 'Quản trị viên' ? undefined : 'var(--jp-text-muted)',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      border: 'none',
+                      letterSpacing: '0.03em'
+                    }}
+                  >
+                    {profileModalUser.role}
+                  </span>
+                )}
               </div>
 
               {/* Info grid */}
