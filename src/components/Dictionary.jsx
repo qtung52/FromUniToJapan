@@ -202,6 +202,20 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
   const [quizScore, setQuizScore] = useState(0);
   const [isQuizFinished, setIsQuizFinished] = useState(false);
 
+  // New States for Pronunciation & Difficulty & Timer
+  const [audioListenedCount, setAudioListenedCount] = useState(() => {
+    try {
+      const val = localStorage.getItem('nihon_audio_listened_count');
+      return val ? parseInt(val, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] = useState('medium'); // easy, medium, hard, extreme
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [showHint, setShowHint] = useState(false);
+
   const [cardsFlipped, setCardsFlipped] = useState(() => {
     try {
       const val = JSON.parse(localStorage.getItem('nihon_cards_flipped'));
@@ -236,6 +250,8 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
   const [isLeaderboardClosing, setIsLeaderboardClosing] = useState(false);
   const [showBadgesModal, setShowBadgesModal] = useState(false);
   const [isBadgesClosing, setIsBadgesClosing] = useState(false);
+  const [isDifficultyClosing, setIsDifficultyClosing] = useState(false);
+  const [isPracticeClosing, setIsPracticeClosing] = useState(false);
   const [cardQuizStates, setCardQuizStates] = useState({});
 
   const handleCloseLeaderboard = () => {
@@ -251,6 +267,14 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
     setTimeout(() => {
       setShowBadgesModal(false);
       setIsBadgesClosing(false);
+    }, 250);
+  };
+
+  const handleCloseDifficultyModal = () => {
+    setIsDifficultyClosing(true);
+    setTimeout(() => {
+      setShowDifficultyModal(false);
+      setIsDifficultyClosing(false);
     }, 250);
   };
 
@@ -499,8 +523,53 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
       check: () => bookmarkedCards.length >= 5,
       color: '#d35400',
       bg: 'rgba(211, 84, 0, 0.1)'
+    },
+    {
+      id: 'speed_runner',
+      icon: '⚡',
+      name: 'Thần tốc lễ nghi',
+      desc: 'Hoàn thành thử thách ở chế độ Khó hoặc Cực Khó',
+      check: () => challengesCompleted.some(c => c.difficulty === 'hard' || c.difficulty === 'extreme'),
+      color: '#f39c12',
+      bg: 'rgba(243, 156, 18, 0.1)'
+    },
+    {
+      id: 'perfect_extreme',
+      icon: '🛡️',
+      name: 'Vô địch tuyệt đối',
+      desc: 'Đạt điểm tuyệt đối (20/20) ở chế độ Cực Khó',
+      check: () => challengesCompleted.some(c => c.difficulty === 'extreme' && c.score === c.total && c.total >= 20),
+      color: '#2c3e50',
+      bg: 'rgba(44, 62, 80, 0.1)'
+    },
+    {
+      id: 'points_100',
+      icon: '✨',
+      name: 'Học giả kiên trì',
+      desc: 'Đạt tổng điểm tích lũy từ 100đ trở lên',
+      check: () => challengesCompleted.reduce((acc, c) => acc + c.score, 0) >= 100,
+      color: '#9b59b6',
+      bg: 'rgba(155, 89, 182, 0.1)'
+    },
+    {
+      id: 'pronunciation_master',
+      icon: '🗣️',
+      name: 'Nhà ngôn ngữ học',
+      desc: 'Nghe phát âm tiếng Nhật tối thiểu 10 lần',
+      check: () => audioListenedCount >= 10,
+      color: '#00bcd4',
+      bg: 'rgba(0, 188, 212, 0.1)'
+    },
+    {
+      id: 'survivor_extreme',
+      icon: '🔥',
+      name: 'Sinh tử vô song',
+      desc: 'Đạt tối thiểu 10 điểm trong chế độ Cực Khó mà không làm kết thúc giữa chừng',
+      check: () => challengesCompleted.some(c => c.difficulty === 'extreme' && c.score >= 10),
+      color: '#c0392b',
+      bg: 'rgba(192, 57, 43, 0.1)'
     }
-  ], [cardsFlippedCount, challengesCompleted, bookmarkedCards, dictionary]);
+  ], [cardsFlippedCount, challengesCompleted, bookmarkedCards, dictionary, audioListenedCount]);
 
   useEffect(() => {
     localStorage.setItem('nihon_cards_flipped', JSON.stringify(cardsFlipped));
@@ -518,7 +587,72 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
     localStorage.setItem('nihon_bookmarked_cards', JSON.stringify(bookmarkedCards));
   }, [bookmarkedCards]);
 
+  // Timer Effect
+  useEffect(() => {
+    if (!practiceItem || practiceItem.id !== 'general-challenge' || isQuizFinished || selectedOptionIdx !== null) {
+      return;
+    }
 
+    if (timeLeft === null) return;
+
+    if (timeLeft === 0) {
+      // Time is up!
+      playBeep('incorrect');
+      setSelectedOptionIdx(-1); // special index to show incorrect
+
+      if (selectedDifficulty === 'extreme') {
+        setTimeout(() => {
+          setIsQuizFinished(true);
+          setChallengesCompleted(prevChallenges => {
+            const newChallenge = { 
+              cardId: 'general-challenge', 
+              score: quizScore, 
+              total: practiceItem.scenarios.length, 
+              difficulty: 'extreme', 
+              isTerminated: true 
+            };
+            const nextList = [...prevChallenges, newChallenge];
+            const newTotalScore = nextList.reduce((acc, c) => {
+              const mult = c.difficulty === 'easy' ? 1.0 : c.difficulty === 'medium' ? 1.5 : c.difficulty === 'hard' ? 2.0 : c.difficulty === 'extreme' ? 3.0 : 1.0;
+              return acc + Math.round(c.score * mult);
+            }, 0);
+            syncScoreToSharedStore(newTotalScore, nextList);
+            return nextList;
+          });
+        }, 1500);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [timeLeft, practiceItem, currentScenarioIdx, selectedOptionIdx, isQuizFinished, selectedDifficulty, quizScore]);
+
+
+
+  const playJapaneseVoice = (text) => {
+    try {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      // Remove romaji in parentheses for cleaner pronunciation
+      const cleanText = text.split('(')[0].trim();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'ja-JP';
+      utterance.rate = 0.8;
+      window.speechSynthesis.speak(utterance);
+
+      setAudioListenedCount(prev => {
+        const nextVal = prev + 1;
+        localStorage.setItem('nihon_audio_listened_count', nextVal);
+        return nextVal;
+      });
+    } catch (e) {
+      console.warn("TTS error:", e);
+    }
+  };
 
   const playBeep = (type) => {
     try {
@@ -572,7 +706,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
     }
   };
 
-  const startGeneralChallenge = () => {
+  const startGeneralChallenge = (diff = 'medium') => {
     const list = Array.isArray(dictionary) ? dictionary : MANNERS_DATA;
     const allScenarios = [];
     list.forEach(item => {
@@ -592,10 +726,18 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
       return;
     }
 
-    const shuffled = [...allScenarios].sort(() => 0.5 - Math.random()).slice(0, 10);
+    let limit = 10;
+    if (diff === 'easy') limit = 5;
+    else if (diff === 'medium') limit = 10;
+    else if (diff === 'hard') limit = 15;
+    else if (diff === 'extreme') limit = 20;
+
+    const shuffled = [...allScenarios].sort(() => 0.5 - Math.random()).slice(0, Math.min(limit, allScenarios.length));
+    
+    setSelectedDifficulty(diff);
     setPracticeItem({
       id: 'general-challenge',
-      titleVi: 'Thử thách văn hóa tổng hợp',
+      titleVi: `Thử thách tổng hợp - Chế độ ${diff === 'easy' ? 'Dễ' : diff === 'medium' ? 'Trung bình' : diff === 'hard' ? 'Khó' : 'Cực khó'}`,
       titleJp: '総合的なビジネスマナー',
       scenarios: shuffled
     });
@@ -603,9 +745,23 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
     setSelectedOptionIdx(null);
     setQuizScore(0);
     setIsQuizFinished(false);
+    setShowHint(false);
+
+    if (diff === 'easy') {
+      setTimeLeft(null);
+    } else if (diff === 'medium') {
+      setTimeLeft(25);
+    } else if (diff === 'hard') {
+      setTimeLeft(15);
+    } else if (diff === 'extreme') {
+      setTimeLeft(10);
+    }
   };
 
   const startPractice = (item) => {
+    setSelectedDifficulty('normal');
+    setTimeLeft(null);
+    setShowHint(false);
     setPracticeItem(item);
     setCurrentScenarioIdx(0);
     setSelectedOptionIdx(null);
@@ -621,6 +777,33 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
       playBeep('correct');
     } else {
       playBeep('incorrect');
+      if (selectedDifficulty === 'hard') {
+        // Penalty for wrong answers in Hard mode
+        setQuizScore(prev => Math.max(0, prev - 0.5));
+      }
+
+      if (selectedDifficulty === 'extreme') {
+        // Sudden death! End challenge immediately
+        setTimeout(() => {
+          setIsQuizFinished(true);
+          setChallengesCompleted(prevChallenges => {
+            const newChallenge = { 
+              cardId: 'general-challenge', 
+              score: quizScore, 
+              total: practiceItem.scenarios.length, 
+              difficulty: 'extreme', 
+              isTerminated: true 
+            };
+            const nextList = [...prevChallenges, newChallenge];
+            const newTotalScore = nextList.reduce((acc, c) => {
+              const mult = c.difficulty === 'easy' ? 1.0 : c.difficulty === 'medium' ? 1.5 : c.difficulty === 'hard' ? 2.0 : c.difficulty === 'extreme' ? 3.0 : 1.0;
+              return acc + Math.round(c.score * mult);
+            }, 0);
+            syncScoreToSharedStore(newTotalScore, nextList);
+            return nextList;
+          });
+        }, 1500);
+      }
     }
   };
 
@@ -628,15 +811,30 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
     if (currentScenarioIdx < practiceItem.scenarios.length - 1) {
       setCurrentScenarioIdx(prev => prev + 1);
       setSelectedOptionIdx(null);
+      setShowHint(false);
+      
+      // Reset timer for next question
+      if (selectedDifficulty === 'easy') setTimeLeft(null);
+      else if (selectedDifficulty === 'medium') setTimeLeft(25);
+      else if (selectedDifficulty === 'hard') setTimeLeft(15);
+      else if (selectedDifficulty === 'extreme') setTimeLeft(10);
     } else {
       const cardId = practiceItem.id;
       const total = practiceItem.scenarios.length;
       const score = quizScore;
 
       setChallengesCompleted(prevChallenges => {
-        const newChallenge = { cardId, score, total };
+        const newChallenge = { 
+          cardId, 
+          score, 
+          total, 
+          difficulty: cardId === 'general-challenge' ? selectedDifficulty : 'normal' 
+        };
         const nextList = [...prevChallenges, newChallenge];
-        const newTotalScore = nextList.reduce((acc, c) => acc + c.score, 0);
+        const newTotalScore = nextList.reduce((acc, c) => {
+          const mult = c.difficulty === 'easy' ? 1.0 : c.difficulty === 'medium' ? 1.5 : c.difficulty === 'hard' ? 2.0 : c.difficulty === 'extreme' ? 3.0 : 1.0;
+          return acc + Math.round(c.score * mult);
+        }, 0);
         syncScoreToSharedStore(newTotalScore, nextList);
         return nextList;
       });
@@ -649,10 +847,24 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
     setSelectedOptionIdx(null);
     setQuizScore(0);
     setIsQuizFinished(false);
+    setShowHint(false);
+    if (practiceItem && practiceItem.id === 'general-challenge') {
+      if (selectedDifficulty === 'easy') setTimeLeft(null);
+      else if (selectedDifficulty === 'medium') setTimeLeft(25);
+      else if (selectedDifficulty === 'hard') setTimeLeft(15);
+      else if (selectedDifficulty === 'extreme') setTimeLeft(10);
+    } else {
+      setTimeLeft(null);
+    }
   };
 
   const closePractice = () => {
-    setPracticeItem(null);
+    setIsPracticeClosing(true);
+    setTimeout(() => {
+      setPracticeItem(null);
+      setTimeLeft(null);
+      setIsPracticeClosing(false);
+    }, 250);
   };
 
   const handleCardClick = (id) => {
@@ -871,16 +1083,16 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
           <span style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
             🎯 Thử thách tổng hợp
           </span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--jp-red)', lineHeight: 1 }}>
-              {generalChallengeRecord ? `${generalChallengeRecord.score}` : '0'}
+              {generalChallengeRecord ? `${Math.round(generalChallengeRecord.score * (generalChallengeRecord.difficulty === 'easy' ? 1.0 : generalChallengeRecord.difficulty === 'medium' ? 1.5 : generalChallengeRecord.difficulty === 'hard' ? 2.0 : generalChallengeRecord.difficulty === 'extreme' ? 3.0 : 1.0))}` : '0'}
             </span>
-            <span style={{ fontSize: '0.9rem', color: 'var(--jp-text-muted)', fontWeight: 600 }}>
-              {generalChallengeRecord ? `/${generalChallengeRecord.total}đ kỷ lục` : 'điểm kỷ lục'}
+            <span style={{ fontSize: '0.78rem', color: 'var(--jp-text-muted)', fontWeight: 600 }}>
+              {generalChallengeRecord ? `điểm (${generalChallengeRecord.score}/${generalChallengeRecord.total} câu - ${generalChallengeRecord.difficulty === 'easy' ? 'Dễ' : generalChallengeRecord.difficulty === 'medium' ? 'T.Bình' : generalChallengeRecord.difficulty === 'hard' ? 'Khó' : 'Cực khó'})` : 'kỷ lục'}
             </span>
           </div>
           <button
-            onClick={startGeneralChallenge}
+            onClick={() => setShowDifficultyModal(true)}
             style={{
               width: '100%',
               padding: '0.6rem 0.8rem',
@@ -908,7 +1120,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
               e.target.style.boxShadow = '0 4px 12px rgba(188, 0, 45, 0.25)';
             }}
           >
-            🎯 Làm thử thách tổng hợp (10 câu)
+            🎯 Làm thử thách tổng hợp
           </button>
         </div>
 
@@ -960,18 +1172,19 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
               <span style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', fontWeight: 700 }}>
                 🏆 Bảng xếp hạng Thử thách
               </span>
-              <button
+              <span
                 onClick={() => setShowLeaderboardInfo(prev => !prev)}
                 style={{
                   background: 'var(--jp-blue-light)',
-                  border: 'none',
                   borderRadius: '50%',
                   width: '16px',
                   height: '16px',
+                  aspectRatio: '1 / 1',
+                  padding: 0,
                   fontSize: '0.6rem',
                   color: 'var(--jp-blue)',
                   cursor: 'pointer',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 800,
@@ -980,7 +1193,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                 title="Cách tính điểm"
               >
                 i
-              </button>
+              </span>
               {showLeaderboardInfo && (
                 <div style={{
                   position: 'absolute',
@@ -1133,6 +1346,8 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                 right: '-20px',
                 width: '80px',
                 height: '80px',
+                aspectRatio: '1 / 1',
+                flexShrink: 0,
                 borderRadius: '50%',
                 background: topic.gradient,
                 opacity: 0.15,
@@ -1316,20 +1531,25 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                     }}>
                       {getCategoryLabel(getCardGroupCategory(item))}
                     </span>
-                    <button
+                    <span
                       onClick={(e) => {
                         e.stopPropagation();
                         setBookmarkedCards(prev => isStarred ? prev.filter(id => id !== item.id) : [...prev, item.id]);
                       }}
                       className="card-bookmark-btn"
                       style={{
-                        color: isStarred ? '#f1c40f' : 'var(--jp-text-muted)'
+                        color: isStarred ? '#f1c40f' : 'var(--jp-text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        aspectRatio: '1 / 1',
+                        padding: 0
                       }}
                     >
                       <svg viewBox="0 0 24 24" width="16" height="16" fill={isStarred ? '#f1c40f' : 'none'} stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
-                    </button>
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
@@ -1337,12 +1557,36 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                   </div>
 
                   <div style={{ textAlign: 'center' }}>
-                    <h4 className="card-title-jp" style={{
-                      fontSize: '1.25rem',
-                      color: 'var(--jp-red)',
-                      marginBottom: '0.35rem',
-                      fontWeight: 700
-                    }}>{item.titleJp}</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '0.35rem' }}>
+                      <h4 className="card-title-jp" style={{
+                        fontSize: '1.25rem',
+                        color: 'var(--jp-red)',
+                        margin: 0,
+                        fontWeight: 700
+                      }}>{item.titleJp}</h4>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playJapaneseVoice(item.titleJp);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '1.1rem',
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: 'var(--jp-red)',
+                          transition: 'transform 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.15)'}
+                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                        title="Nghe phát âm"
+                      >
+                        🔊
+                      </button>
+                    </div>
                     <h5 className="card-title-vi" style={{
                       fontSize: '0.95rem',
                       color: 'var(--jp-blue)',
@@ -1392,20 +1636,25 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                   boxSizing: 'border-box'
                 }}>
                   {/* Absolute Golden Star Bookmark */}
-                  <button
+                  <span
                     onClick={(e) => {
                       e.stopPropagation();
                       setBookmarkedCards(prev => isStarred ? prev.filter(id => id !== item.id) : [...prev, item.id]);
                     }}
                     className="card-bookmark-btn"
                     style={{
-                      color: isStarred ? '#f1c40f' : 'var(--jp-text-muted)'
+                      color: isStarred ? '#f1c40f' : 'var(--jp-text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      aspectRatio: '1 / 1',
+                      padding: 0
                     }}
                   >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill={isStarred ? '#f1c40f' : 'none'} stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
-                  </button>
+                  </span>
 
                   {cardQuizStates[item.id] ? (
                     // QUIZ UI inside Card Back
@@ -1720,7 +1969,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
       {/* Interactive Quiz Modal/Overlay */}
       {practiceItem && createPortal(
         <div
-          className="modal-overlay"
+          className="challenge-overlay"
           onClick={closePractice}
           style={{
             position: 'fixed',
@@ -1728,30 +1977,29 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(5px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
-            padding: '1rem'
+            padding: '1rem',
+            animation: isPracticeClosing ? 'challengeFadeOut 0.25s ease-in forwards' : 'challengeFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         >
           <div
-            className="modal-content page-transition"
+            className="challenge-modal-card"
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '600px',
               width: '100%',
               background: 'var(--jp-card-bg)',
               border: '1px solid var(--jp-border)',
-              borderRadius: '16px',
+              borderRadius: '20px',
               padding: '1.75rem',
-              boxShadow: 'var(--jp-shadow-lg)',
               position: 'relative',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.25rem'
+              gap: '1.25rem',
+              animation: isPracticeClosing ? 'popDownOut 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'popDown 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
             }}
           >
             <button
@@ -1773,22 +2021,150 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
 
             {!isQuizFinished ? (
               <>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--jp-red)', fontWeight: 800 }}>
-                    {practiceItem.id === 'general-challenge' ? '🏆 THỬ THÁCH TỔNG HỢP' : '🎯 LUYỆN TẬP'}
-                  </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--jp-red)', fontWeight: 800 }}>
+                      {practiceItem.id === 'general-challenge' ? '🏆 THỬ THÁCH TỔNG HỢP' : '🎯 LUYỆN TẬP'}
+                    </span>
+                    {practiceItem.id === 'general-challenge' && (
+                      <span style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 800,
+                        color: 'white',
+                        background: selectedDifficulty === 'easy' ? '#27ae60' : selectedDifficulty === 'medium' ? '#2980b9' : selectedDifficulty === 'hard' ? '#e67e22' : '#c0392b',
+                        padding: '2px 8px',
+                        borderRadius: '10px'
+                      }}>
+                        {selectedDifficulty === 'easy' ? 'Dễ' : selectedDifficulty === 'medium' ? 'Trung bình' : selectedDifficulty === 'hard' ? 'Khó' : 'Cực khó'}
+                      </span>
+                    )}
+                  </div>
                   <h3 style={{ margin: '0.2rem 0 0.5rem 0', fontSize: '1.2rem', color: 'var(--jp-text)' }}>
                     {practiceItem.titleVi}
                   </h3>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--jp-text-muted)' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--jp-text-muted)', alignItems: 'center' }}>
                     <span>Tình huống {currentScenarioIdx + 1}/{practiceItem.scenarios.length}</span>
+                    {timeLeft !== null && (
+                      <span style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 800,
+                        color: timeLeft <= 4 ? 'var(--jp-red)' : 'var(--jp-blue)',
+                        background: timeLeft <= 4 ? 'rgba(231, 76, 60, 0.15)' : 'var(--jp-blue-light)',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}>
+                        ⏱️ {timeLeft}s
+                      </span>
+                    )}
                     <span>Đúng: {quizScore}/{currentScenarioIdx + (selectedOptionIdx !== null ? 1 : 0)}</span>
                   </div>
+
+                  {/* Visual Timer Progress Bar */}
+                  {timeLeft !== null && (
+                    <div style={{ width: '100%', height: '4px', background: 'var(--jp-bg)', borderRadius: '2px', overflow: 'hidden', marginTop: '0.5rem' }}>
+                      <div style={{
+                        width: `${(timeLeft / (selectedDifficulty === 'medium' ? 25 : selectedDifficulty === 'hard' ? 15 : 10)) * 100}%`,
+                        height: '100%',
+                        background: timeLeft > 10 ? '#2ecc71' : timeLeft > 4 ? '#f39c12' : '#e74c3c',
+                        transition: 'width 1s linear'
+                      }} />
+                    </div>
+                  )}
                 </div>
+
+                {/* Specific mode notifications */}
+                {selectedDifficulty === 'extreme' && !isQuizFinished && (
+                  <div style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: '#c0392b',
+                    background: 'rgba(192, 57, 43, 0.08)',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(192, 57, 43, 0.2)',
+                    textAlign: 'center'
+                  }}>
+                    💀 SINH TỬ: Bất kỳ câu trả lời sai hoặc hết giờ nào cũng sẽ kết thúc thử thách!
+                  </div>
+                )}
+                {selectedDifficulty === 'hard' && !isQuizFinished && (
+                  <div style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: '#e67e22',
+                    background: 'rgba(230, 126, 34, 0.08)',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(230, 126, 34, 0.2)',
+                    textAlign: 'center'
+                  }}>
+                    🔥 PHẠT ĐIỂM: Hãy cẩn thận, trả lời sai hoặc hết giờ sẽ bị trừ 0.5 câu đúng!
+                  </div>
+                )}
 
                 <p style={{ fontSize: '0.9rem', lineHeight: '1.5', margin: 0, color: 'var(--jp-text)', fontWeight: 600 }}>
                   {practiceItem.scenarios[currentScenarioIdx].situation}
                 </p>
+
+                {/* Hint Button in Easy Mode */}
+                {selectedDifficulty === 'easy' && selectedOptionIdx === null && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                    <button
+                      onClick={() => setShowHint(prev => !prev)}
+                      style={{
+                        background: 'rgba(241, 196, 15, 0.12)',
+                        border: '1px solid #f1c40f',
+                        color: '#d35400',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      💡 {showHint ? 'Ẩn Gợi ý' : 'Xem Gợi ý'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Hint text box */}
+                {showHint && selectedOptionIdx === null && (
+                  <div style={{
+                    background: 'rgba(241, 196, 15, 0.05)',
+                    border: '1px dashed #f1c40f',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    lineHeight: '1.4',
+                    color: 'var(--jp-text)'
+                  }}>
+                    <strong style={{ color: '#d35400' }}>💡 Gợi ý:</strong> {practiceItem.scenarios[currentScenarioIdx].explanation}
+                  </div>
+                )}
+
+                {/* Time out warning text */}
+                {selectedOptionIdx === -1 && (
+                  <div style={{
+                    background: 'rgba(231, 76, 60, 0.08)',
+                    border: '1px solid var(--jp-red)',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    color: 'var(--jp-red)',
+                    fontWeight: 700,
+                    textAlign: 'center'
+                  }}>
+                    ⏰ ĐÃ HẾT GIỜ! Bạn không trả lời kịp tình huống này.
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   {practiceItem.scenarios[currentScenarioIdx].options.map((option, idx) => {
@@ -1841,7 +2217,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                   })}
                 </div>
 
-                {selectedOptionIdx !== null && (
+                {selectedOptionIdx !== null && selectedOptionIdx !== -1 && (
                   <div style={{
                     background: 'var(--jp-soft-surface)',
                     border: '1px solid var(--jp-border)',
@@ -1882,44 +2258,89 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                 </div>
               </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-                <span style={{ fontSize: '3.5rem', display: 'block', marginBottom: '0.5rem' }}>
-                  {quizScore === practiceItem.scenarios.length ? '🎉' : '👍'}
+              <div style={{ textAlign: 'center', padding: '1.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+                <span style={{ fontSize: '3.5rem', display: 'block', marginBottom: '0.2rem' }}>
+                  {quizScore === practiceItem.scenarios.length ? '🎉' : quizScore > 0 ? '👍' : '😢'}
                 </span>
-                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.5rem 0', color: 'var(--jp-text)' }}>
-                  Thử thách hoàn thành!
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--jp-text)' }}>
+                  Thử thách kết thúc!
                 </h3>
-                <p style={{ fontSize: '0.95rem', color: 'var(--jp-text-muted)', margin: '0 0 1.25rem 0' }}>
-                  Bạn trả lời đúng <strong>{quizScore}/{practiceItem.scenarios.length}</strong> tình huống.
+                
+                <div style={{
+                  background: 'var(--jp-soft-surface)',
+                  border: '1px solid var(--jp-border)',
+                  padding: '1rem 1.5rem',
+                  borderRadius: '16px',
+                  width: '100%',
+                  maxWidth: '350px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  boxSizing: 'border-box'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                    <span style={{ color: 'var(--jp-text-muted)' }}>Độ khó:</span>
+                    <strong style={{
+                      color: selectedDifficulty === 'easy' ? '#27ae60' : selectedDifficulty === 'medium' ? '#2980b9' : selectedDifficulty === 'hard' ? '#e67e22' : selectedDifficulty === 'extreme' ? '#c0392b' : 'var(--jp-text)'
+                    }}>
+                      {selectedDifficulty === 'easy' ? '🌱 Dễ (x1.0)' : selectedDifficulty === 'medium' ? '📚 Trung bình (x1.5)' : selectedDifficulty === 'hard' ? '🔥 Khó (x2.0)' : selectedDifficulty === 'extreme' ? '💀 Cực khó (x3.0)' : 'Luyện tập'}
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                    <span style={{ color: 'var(--jp-text-muted)' }}>Số câu đúng:</span>
+                    <strong>{quizScore}/{practiceItem.scenarios.length}</strong>
+                  </div>
+                  {practiceItem.id === 'general-challenge' && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', borderTop: '1px solid var(--jp-border)', paddingTop: '6px', marginTop: '4px' }}>
+                      <span style={{ color: 'var(--jp-text-muted)', fontWeight: 700 }}>Điểm tích lũy:</span>
+                      <strong style={{ color: 'var(--jp-red)', fontSize: '1rem' }}>
+                        +{Math.round(quizScore * (selectedDifficulty === 'easy' ? 1.0 : selectedDifficulty === 'medium' ? 1.5 : selectedDifficulty === 'hard' ? 2.0 : selectedDifficulty === 'extreme' ? 3.0 : 1.0))}đ
+                      </strong>
+                    </div>
+                  )}
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: 'var(--jp-text-muted)', margin: '0.5rem 0' }}>
+                  {quizScore === practiceItem.scenarios.length ? 'Xuất sắc! Bạn đã làm chủ hoàn toàn các tình huống này.' : 'Hãy tiếp tục rèn luyện để nâng cao kỹ năng ứng xử nhé!'}
                 </p>
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', width: '100%', maxWidth: '350px' }}>
                   <button
                     onClick={closePractice}
                     style={{
-                      padding: '0.55rem 1.5rem',
-                      borderRadius: '8px',
+                      flex: 1,
+                      padding: '0.65rem',
+                      borderRadius: '10px',
                       border: '1px solid var(--jp-border)',
                       background: 'none',
                       color: 'var(--jp-text)',
                       fontSize: '0.85rem',
                       fontWeight: 700,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      transition: 'background 0.2s'
                     }}
+                    onMouseEnter={(e) => e.target.style.background = 'var(--jp-bg)'}
+                    onMouseLeave={(e) => e.target.style.background = 'none'}
                   >
                     Xem sổ tay
                   </button>
                   <button
                     onClick={resetPractice}
                     style={{
-                      padding: '0.55rem 1.5rem',
-                      borderRadius: '8px',
+                      flex: 1,
+                      padding: '0.65rem',
+                      borderRadius: '10px',
                       border: 'none',
-                      background: 'var(--jp-red)',
+                      background: 'linear-gradient(135deg, var(--jp-red) 0%, #c0392b 100%)',
                       color: 'white',
                       fontSize: '0.85rem',
                       fontWeight: 700,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(188, 0, 45, 0.2)',
+                      transition: 'transform 0.15s ease'
                     }}
+                    onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                   >
                     Thử lại
                   </button>
@@ -1971,18 +2392,20 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
-            <button
+            <span
               onClick={handleCloseLeaderboard}
               style={{
                 position: 'absolute',
                 top: '16px',
                 right: '16px',
                 background: 'rgba(0,0,0,0.05)',
-                border: 'none',
                 borderRadius: '50%',
                 width: '32px',
                 height: '32px',
-                display: 'flex',
+                aspectRatio: '1 / 1',
+                padding: 0,
+                flexShrink: 0,
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
@@ -2000,7 +2423,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
               }}
             >
               ✕
-            </button>
+            </span>
 
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -2158,18 +2581,20 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
-            <button
+            <span
               onClick={handleCloseBadgesModal}
               style={{
                 position: 'absolute',
                 top: '16px',
                 right: '16px',
                 background: 'rgba(0,0,0,0.05)',
-                border: 'none',
                 borderRadius: '50%',
                 width: '32px',
                 height: '32px',
-                display: 'flex',
+                aspectRatio: '1 / 1',
+                padding: 0,
+                flexShrink: 0,
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
@@ -2187,7 +2612,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
               }}
             >
               ✕
-            </button>
+            </span>
 
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -2304,8 +2729,267 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
         document.body
       )}
 
+      {/* Difficulty Selection Modal Portal */}
+      {showDifficultyModal && createPortal(
+        <div
+          className="challenge-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            animation: isDifficultyClosing ? 'challengeFadeOut 0.25s ease-in forwards' : 'challengeFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+          onClick={handleCloseDifficultyModal}
+        >
+          <div
+            className="leaderboard-modal-card challenge-modal-card"
+            style={{
+              width: '90%',
+              maxWidth: '480px',
+              borderRadius: '24px',
+              padding: '1.75rem',
+              color: 'var(--jp-text)',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              animation: isDifficultyClosing ? 'popDownOut 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'popDown 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <span
+              onClick={handleCloseDifficultyModal}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(0,0,0,0.05)',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                aspectRatio: '1 / 1',
+                padding: 0,
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                color: 'var(--jp-text-muted)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(231, 76, 60, 0.1)';
+                e.target.style.color = 'var(--jp-red)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(0,0,0,0.05)';
+                e.target.style.color = 'var(--jp-text-muted)';
+              }}
+            >
+              ✕
+            </span>
+
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem' }}>🎯</span>
+              <h3 style={{
+                fontSize: '1.35rem',
+                fontWeight: 800,
+                color: 'var(--jp-red)',
+                margin: 0,
+                letterSpacing: '-0.3px'
+              }}>
+                Chọn Độ Khó Thử Thách
+              </h3>
+              <p style={{
+                fontSize: '0.78rem',
+                color: 'var(--jp-text-muted)',
+                margin: '4px 0 0 0'
+              }}>
+                Quy tắc càng khó, điểm tích lũy nhận được càng cao!
+              </p>
+            </div>
+
+            {/* Difficulty Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {[
+                {
+                  id: 'easy',
+                  name: 'Dễ',
+                  icon: '🌱',
+                  desc: '5 câu • Không thời gian • Có nút xem Gợi ý',
+                  mult: 'x1.0 điểm',
+                  color: '#27ae60',
+                  bg: 'rgba(46, 204, 113, 0.08)'
+                },
+                {
+                  id: 'medium',
+                  name: 'Trung bình',
+                  icon: '📚',
+                  desc: '10 câu • 25 giây/câu • Không xem gợi ý',
+                  mult: 'x1.5 điểm',
+                  color: '#2980b9',
+                  bg: 'rgba(52, 152, 219, 0.08)'
+                },
+                {
+                  id: 'hard',
+                  name: 'Khó',
+                  icon: '🔥',
+                  desc: '15 câu • 15 giây/câu • Sai bị trừ 0.5 câu',
+                  mult: 'x2.0 điểm',
+                  color: '#e67e22',
+                  bg: 'rgba(230, 126, 34, 0.08)'
+                },
+                {
+                  id: 'extreme',
+                  name: 'Cực khó (Sinh tử)',
+                  icon: '💀',
+                  desc: '20 câu • 10 giây/câu • Trả lời sai 1 câu = Thất bại ngay',
+                  mult: 'x3.0 điểm',
+                  color: '#c0392b',
+                  bg: 'rgba(192, 57, 43, 0.08)'
+                }
+              ].map((diff) => (
+                <div
+                  key={diff.id}
+                  onClick={() => setSelectedDifficulty(diff.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    border: selectedDifficulty === diff.id ? `2px solid ${diff.color}` : '2px solid var(--jp-border)',
+                    background: selectedDifficulty === diff.id ? diff.bg : 'var(--jp-surface)',
+                    transform: selectedDifficulty === diff.id ? 'scale(1.02)' : 'none',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedDifficulty === diff.id ? `0 6px 15px ${diff.color}15` : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>{diff.icon}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.85rem', color: diff.color }}>{diff.name}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--jp-text-muted)' }}>{diff.desc}</span>
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    color: 'white',
+                    background: diff.color,
+                    padding: '2px 8px',
+                    borderRadius: '10px'
+                  }}>
+                    {diff.mult}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                onClick={handleCloseDifficultyModal}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  border: '1px solid var(--jp-border)',
+                  background: 'none',
+                  color: 'var(--jp-text)',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'var(--jp-bg)'}
+                onMouseLeave={(e) => e.target.style.background = 'none'}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={() => {
+                  setShowDifficultyModal(false);
+                  startGeneralChallenge(selectedDifficulty);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, var(--jp-red) 0%, #c0392b 100%)',
+                  color: 'white',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(188, 0, 45, 0.2)',
+                  transition: 'transform 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+              >
+                🔥 Bắt đầu
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Keyframe animations and dark mode overrides for modal and dashboard */}
       <style>{`
+        @keyframes popDown {
+          0% {
+            opacity: 0;
+            transform: translateY(-120px) scale(0.85);
+            filter: blur(8px);
+          }
+          65% {
+            opacity: 1;
+            transform: translateY(12px) scale(1.02);
+            filter: none;
+          }
+          85% {
+            transform: translateY(-4px) scale(0.99);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .challenge-overlay {
+          animation: challengeFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes challengeFadeIn {
+          from {
+            background: rgba(15, 23, 42, 0);
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+          }
+          to {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+          }
+        }
+
+        .challenge-modal-card {
+          animation: popDown 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          box-shadow: 0 30px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+        }
+
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -2467,6 +3151,8 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
           border-radius: 50%;
           width: 32px;
           height: 32px;
+          aspect-ratio: 1 / 1;
+          flex-shrink: 0;
           padding: 0;
           margin: 0;
           box-sizing: border-box;

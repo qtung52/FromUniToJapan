@@ -2541,3 +2541,32 @@ select {
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   MOBILE WARPING FIX FOR CIRCULAR ELEMENTS
+   ========================================================================== */
+.logo-circle,
+.scene-dot,
+.scene-person::before,
+.step-node,
+.action-dropdown-btn,
+.auth-promo::before,
+.auth-promo-wave,
+.pwd-toggle-btn,
+.card-bookmark-btn {
+  aspect-ratio: 1 / 1 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Protect exact elements with inline circle styling */
+img[style*="border-radius: 50%"],
+img[style*="border-radius:50%"],
+div[style*="border-radius: 50%"],
+div[style*="border-radius:50%"],
+button[style*="border-radius: 50%"],
+button[style*="border-radius:50%"],
+span[style*="border-radius: 50%"],
+span[style*="border-radius:50%"] {
+  aspect-ratio: 1 / 1 !important;
+  flex-shrink: 0 !important;
+}
