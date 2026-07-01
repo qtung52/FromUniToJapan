@@ -315,6 +315,42 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
     }
   };
 
+  const syncBookmarkedToSharedStore = async (bookmarkedList) => {
+    try {
+      const session = JSON.parse(localStorage.getItem('session_user'));
+      if (!session || !session.email) return;
+
+      const users = await getSharedArray('users', []);
+      const nextUsers = users.map(u =>
+        (u.email && u.email.trim().toLowerCase() === session.email.trim().toLowerCase())
+          ? { ...u, bookmarkedCards: bookmarkedList }
+          : u
+      );
+      await setSharedArray('users', nextUsers);
+      setDbUsersList(nextUsers);
+    } catch (e) {
+      console.warn("Failed to sync bookmarked cards to shared store:", e);
+    }
+  };
+
+  const syncAudioListenedToSharedStore = async (count) => {
+    try {
+      const session = JSON.parse(localStorage.getItem('session_user'));
+      if (!session || !session.email) return;
+
+      const users = await getSharedArray('users', []);
+      const nextUsers = users.map(u =>
+        (u.email && u.email.trim().toLowerCase() === session.email.trim().toLowerCase())
+          ? { ...u, audioListenedCount: count }
+          : u
+      );
+      await setSharedArray('users', nextUsers);
+      setDbUsersList(nextUsers);
+    } catch (e) {
+      console.warn("Failed to sync audio listened count to shared store:", e);
+    }
+  };
+
   // Sync with Supabase on mount
   useEffect(() => {
     const loadSharedUsers = async () => {
@@ -346,6 +382,24 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                 } else {
                   return userDb.challengesCompleted;
                 }
+              });
+            }
+            if (Array.isArray(userDb.bookmarkedCards)) {
+              setBookmarkedCards(prev => {
+                const merged = Array.from(new Set([...prev, ...userDb.bookmarkedCards]));
+                if (merged.length > userDb.bookmarkedCards.length) {
+                  syncBookmarkedToSharedStore(merged);
+                }
+                return merged;
+              });
+            }
+            if (typeof userDb.audioListenedCount === 'number') {
+              setAudioListenedCount(prev => {
+                const max = Math.max(prev, userDb.audioListenedCount);
+                if (max > userDb.audioListenedCount) {
+                  syncAudioListenedToSharedStore(max);
+                }
+                return max;
               });
             }
           }
@@ -585,7 +639,19 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
 
   useEffect(() => {
     localStorage.setItem('nihon_bookmarked_cards', JSON.stringify(bookmarkedCards));
+    const session = JSON.parse(localStorage.getItem('session_user'));
+    if (session && session.email && bookmarkedCards) {
+      syncBookmarkedToSharedStore(bookmarkedCards);
+    }
   }, [bookmarkedCards]);
+
+  useEffect(() => {
+    localStorage.setItem('nihon_audio_listened_count', audioListenedCount);
+    const session = JSON.parse(localStorage.getItem('session_user'));
+    if (session && session.email && audioListenedCount !== undefined) {
+      syncAudioListenedToSharedStore(audioListenedCount);
+    }
+  }, [audioListenedCount]);
 
   // Timer Effect
   useEffect(() => {
