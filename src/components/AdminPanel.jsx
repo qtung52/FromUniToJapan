@@ -34,7 +34,7 @@ export default function AdminPanel({
     };
 
     fetchAdminData();
-    const interval = setInterval(fetchAdminData, 5000);
+    const interval = setInterval(fetchAdminData, 300000); // 5 minutes
     return () => {
       isMounted = false;
       clearInterval(interval);

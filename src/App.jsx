@@ -243,7 +243,7 @@ function App() {
     };
 
     refreshSharedContent();
-    const interval = setInterval(refreshSharedContent, 5000);
+    const interval = setInterval(refreshSharedContent, 300000); // 5 minutes
 
     return () => {
       isMounted = false;
