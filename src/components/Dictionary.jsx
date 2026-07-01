@@ -3165,7 +3165,9 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
           line-height: 1;
           box-shadow: 0 2px 8px rgba(0,0,0,0.06);
           transition: all 0.2s ease;
-          z-index: 10;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          transform: translateZ(0);
         }
 
         /* Dark mode overrides */

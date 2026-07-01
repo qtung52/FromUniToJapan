@@ -2581,3 +2581,26 @@ span[style*="border-radius:50%"] {
   -webkit-backface-visibility: hidden !important;
   backface-visibility: hidden !important;
 }
+
+/* Force hiding non-visible card face during/after 3D flip for WebKit/iOS Safari */
+.card-front {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.6s, visibility 0.6s;
+}
+.flashcard.flipped .card-front {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.card-back {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s, visibility 0.6s;
+}
+.flashcard.flipped .card-back {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
