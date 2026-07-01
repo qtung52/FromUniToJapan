@@ -210,23 +210,30 @@ function App() {
       if (currentUser && Array.isArray(usersData)) {
         const freshUserData = usersData.find(u => (u.email || '').trim().toLowerCase() === currentUser.email.trim().toLowerCase());
         if (freshUserData) {
+          const freshIsAdmin = !!freshUserData.isAdmin;
+          const freshIsSenpai = !!freshUserData.isSenpai;
+          const freshName = freshUserData.name || currentUser.name;
+          const freshAvatar = freshUserData.avatar || currentUser.avatar || '🧑‍💻';
+          const freshBio = freshUserData.bio || currentUser.bio || '';
+          const freshCareerGoal = freshUserData.careerGoal || currentUser.careerGoal || 'Software Engineer (Japan)';
+
           const hasChanged = 
-            freshUserData.isAdmin !== currentUser.isAdmin ||
-            freshUserData.isSenpai !== currentUser.isSenpai ||
-            freshUserData.name !== currentUser.name ||
-            freshUserData.avatar !== currentUser.avatar ||
-            freshUserData.bio !== currentUser.bio ||
-            freshUserData.careerGoal !== currentUser.careerGoal;
+            freshIsAdmin !== currentUser.isAdmin ||
+            freshIsSenpai !== currentUser.isSenpai ||
+            freshName !== currentUser.name ||
+            freshAvatar !== currentUser.avatar ||
+            freshBio !== currentUser.bio ||
+            freshCareerGoal !== currentUser.careerGoal;
 
           if (hasChanged) {
             const updatedUser = { 
               ...currentUser, 
-              isAdmin: !!freshUserData.isAdmin, 
-              isSenpai: !!freshUserData.isSenpai,
-              name: freshUserData.name || currentUser.name,
-              avatar: freshUserData.avatar || currentUser.avatar || '🧑‍💻',
-              bio: freshUserData.bio || currentUser.bio || '',
-              careerGoal: freshUserData.careerGoal || currentUser.careerGoal || 'Software Engineer (Japan)'
+              isAdmin: freshIsAdmin, 
+              isSenpai: freshIsSenpai,
+              name: freshName,
+              avatar: freshAvatar,
+              bio: freshBio,
+              careerGoal: freshCareerGoal
             };
             setCurrentUser(updatedUser);
             localStorage.setItem('session_user', JSON.stringify(updatedUser));
