@@ -114,7 +114,11 @@ function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('nihon_theme', theme);
+    try {
+      localStorage.setItem('nihon_theme', theme);
+    } catch (e) {
+      console.warn("Failed to save nihon_theme to localStorage:", e);
+    }
   }, [theme]);
 
   // Scroll to top on tab/view switch
@@ -168,20 +172,40 @@ function App() {
             parsedUser.careerGoal = dbUser.careerGoal || parsedUser.careerGoal || 'Software Engineer (Japan)';
             parsedUser.jlptLevel = dbUser.jlptLevel || parsedUser.jlptLevel || 'Chưa có';
             parsedUser.savedThreads = dbUser.savedThreads || parsedUser.savedThreads || [];
-            localStorage.setItem('session_user', JSON.stringify(parsedUser));
+            try {
+              localStorage.setItem('session_user', JSON.stringify(parsedUser));
+            } catch (e) {
+              console.warn("Failed to save session_user to localStorage:", e);
+            }
 
             // Sync vocabulary stats directly from database (source of truth)
             if (Array.isArray(dbUser.flippedCards)) {
-              localStorage.setItem('nihon_cards_flipped', JSON.stringify(dbUser.flippedCards));
+              try {
+                localStorage.setItem('nihon_cards_flipped', JSON.stringify(dbUser.flippedCards));
+              } catch (e) {
+                console.warn("Failed to save nihon_cards_flipped to localStorage:", e);
+              }
             }
             if (Array.isArray(dbUser.challengesCompleted)) {
-              localStorage.setItem('nihon_challenges_completed', JSON.stringify(dbUser.challengesCompleted));
+              try {
+                localStorage.setItem('nihon_challenges_completed', JSON.stringify(dbUser.challengesCompleted));
+              } catch (e) {
+                console.warn("Failed to save nihon_challenges_completed to localStorage:", e);
+              }
             }
             if (Array.isArray(dbUser.bookmarkedCards)) {
-              localStorage.setItem('nihon_bookmarked_cards', JSON.stringify(dbUser.bookmarkedCards));
+              try {
+                localStorage.setItem('nihon_bookmarked_cards', JSON.stringify(dbUser.bookmarkedCards));
+              } catch (e) {
+                console.warn("Failed to save nihon_bookmarked_cards to localStorage:", e);
+              }
             }
             if (typeof dbUser.audioListenedCount === 'number') {
-              localStorage.setItem('nihon_audio_listened_count', dbUser.audioListenedCount.toString());
+              try {
+                localStorage.setItem('nihon_audio_listened_count', dbUser.audioListenedCount.toString());
+              } catch (e) {
+                console.warn("Failed to save nihon_audio_listened_count to localStorage:", e);
+              }
             }
 
             // Dispatch update event
@@ -263,7 +287,11 @@ function App() {
               savedThreads: freshSavedThreads
             };
             setCurrentUser(updatedUser);
-            localStorage.setItem('session_user', JSON.stringify(updatedUser));
+            try {
+              localStorage.setItem('session_user', JSON.stringify(updatedUser));
+            } catch (e) {
+              console.warn("Failed to save session_user to localStorage:", e);
+            }
           }
         }
       }
@@ -305,7 +333,11 @@ function App() {
       ...updatedFields
     };
     setCurrentUser(updatedUser);
-    localStorage.setItem('session_user', JSON.stringify(updatedUser));
+    try {
+      localStorage.setItem('session_user', JSON.stringify(updatedUser));
+    } catch (e) {
+      console.warn("Failed to save session_user to localStorage:", e);
+    }
 
     // Update in database list
     const users = await getSharedArray('users', []);
@@ -383,8 +415,12 @@ function App() {
   const handleSurveyComplete = (roadmap, score) => {
     setSurveyRoadmap(roadmap);
     setSurveyScore(score);
-    localStorage.setItem('survey_score', score);
-    localStorage.setItem('survey_roadmap', JSON.stringify(roadmap));
+    try {
+      localStorage.setItem('survey_score', score);
+      localStorage.setItem('survey_roadmap', JSON.stringify(roadmap));
+    } catch (e) {
+      console.warn("Failed to save survey results to localStorage:", e);
+    }
     setActiveView('home');
   };
 

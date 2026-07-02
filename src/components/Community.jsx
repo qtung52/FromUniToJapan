@@ -238,7 +238,11 @@ export default function Community({ currentUser, onViewProfile, onUpdateProfile,
       const localThreads = localStorage.getItem('nihon_threads');
       const fallbackThreads = localThreads ? JSON.parse(localThreads) : INITIAL_THREADS;
       setThreads(fallbackThreads);
-      localStorage.setItem('nihon_threads', JSON.stringify(fallbackThreads));
+      try {
+        localStorage.setItem('nihon_threads', JSON.stringify(fallbackThreads));
+      } catch (e) {
+        console.warn("Failed to save nihon_threads to localStorage:", e);
+      }
       setSyncStatus('offline');
     }
   };
@@ -281,7 +285,11 @@ export default function Community({ currentUser, onViewProfile, onUpdateProfile,
 
   const saveThreads = async (updatedThreads) => {
     setThreads(updatedThreads);
-    localStorage.setItem('nihon_threads', JSON.stringify(updatedThreads));
+    try {
+      localStorage.setItem('nihon_threads', JSON.stringify(updatedThreads));
+    } catch (e) {
+      console.warn("Failed to save nihon_threads to localStorage:", e);
+    }
     try {
       const target = await setSharedArray('threads', updatedThreads);
       setSyncStatus(target === 'supabase' ? 'online' : target === 'local-api' ? 'local' : 'offline');
@@ -914,13 +922,13 @@ export default function Community({ currentUser, onViewProfile, onUpdateProfile,
                           <span>{timeAgo(thread.date)} ({formatAbsoluteTime(thread.date)})</span>
                           {thread.isEdited && (
                             <>
-                              <span>•</span>
+                              <span className={styles.metaDivider}>•</span>
                               <span className={styles.editedLabel} title={`Chỉnh sửa lúc: ${formatAbsoluteTime(thread.editedAt)}`}>
                                 (đã chỉnh sửa {timeAgo(thread.editedAt)})
                               </span>
                             </>
                           )}
-                          <span>•</span>
+                          <span className={styles.metaDivider}>•</span>
                           <span className={styles.postTag}>
                             <Tag size={12} />
                             {thread.tagName}

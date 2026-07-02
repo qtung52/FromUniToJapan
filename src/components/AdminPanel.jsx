@@ -1051,21 +1051,26 @@ export default function AdminPanel({
                         )}
                       </td>
                       <td style={{ padding: '0.75rem', borderBottom: '1px solid var(--jp-border)' }}>
-                        <CustomDropdown
-                          options={rolesList}
+                        <select
                           value={user.customRole || (user.isAdmin ? 'Admin' : user.isSenpai ? 'Senpai' : 'Học viên')}
-                          onChange={(val) => handleUpdateUserCustomRole(user.email, val)}
-                          buttonStyle={{
-                            padding: '0.25rem 0.5rem',
+                          onChange={(e) => handleUpdateUserCustomRole(user.email, e.target.value)}
+                          style={{
+                            width: '130px',
+                            padding: '0.35rem 0.5rem',
                             fontSize: '0.8rem',
-                            height: 'auto',
-                            minHeight: 'unset',
                             borderRadius: '6px',
-                            fontWeight: 'normal',
-                            border: '1px solid var(--jp-border)'
+                            backgroundColor: 'var(--jp-surface)',
+                            color: 'var(--jp-text)',
+                            border: '1px solid var(--jp-border)',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            boxSizing: 'border-box'
                           }}
-                          style={{ width: '130px' }}
-                        />
+                        >
+                          {rolesList.map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
                       </td>
                       <td style={{ padding: '0.75rem', borderBottom: '1px solid var(--jp-border)', textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
@@ -1105,7 +1110,7 @@ export default function AdminPanel({
             Quản lý các vai trò tùy chỉnh trên hệ thống. Bạn có thể thêm các vai trò mới (như Cố vấn, Trưởng nhóm học tập...) để gán cho các tài khoản thành viên.
           </p>
 
-          <div className="admin-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '2rem' }}>
+          <div className="admin-grid roles-grid">
             {/* Left Column: Create Role Form */}
             <div style={{ background: 'var(--jp-soft-surface)', padding: '1.5rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)' }}>
               <h4 style={{ color: 'var(--jp-blue)', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 600 }}>Tạo vai trò mới</h4>
@@ -1236,7 +1241,7 @@ export default function AdminPanel({
       )}
 
       {activeTab === 'dict' && (
-        <div className="admin-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }}>
+        <div className="admin-grid dict-grid">
           {/* Left Side: Creation/Update Forms */}
           <div className="admin-card">
             <form onSubmit={handleAddDictSubmit}>
@@ -1273,7 +1278,7 @@ export default function AdminPanel({
                 />
               </div>
 
-              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div className="form-row" style={{ marginBottom: '1rem' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Tên Tiếng Nhật (Kanji/Kana)</label>
                   <input type="text" className="form-input" value={dictTitleJp} onChange={(e) => setDictTitleJp(e.target.value)} placeholder="例: 名刺交換" required />
@@ -1353,7 +1358,7 @@ export default function AdminPanel({
       )}
 
       {activeTab === 'scenarios' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem', alignItems: 'start' }}>
+        <div className="admin-grid scenarios-grid">
           {/* LEFT: Form */}
           <div className="admin-card" style={{ padding: '2rem' }}>
             <h3 style={{ color: 'var(--jp-blue)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1363,17 +1368,14 @@ export default function AdminPanel({
             <form onSubmit={handleScenSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '0.35rem', display: 'block' }}>Thẻ flashcard *</label>
-                <select
+                <CustomDropdown
                   value={scenCardId}
-                  onChange={e => setScenCardId(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '0.6rem 0.9rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)', background: 'var(--jp-surface)', color: 'var(--jp-text)', fontSize: '0.9rem' }}
-                >
-                  <option value="">-- Chọn thẻ --</option>
-                  {MANNERS_DATA.map(card => (
-                    <option key={card.id} value={card.id}>{card.titleVi} ({card.id})</option>
-                  ))}
-                </select>
+                  onChange={val => setScenCardId(val)}
+                  options={dictionary.map(card => ({ value: card.id, label: `${card.titleVi} (${card.id})` }))}
+                  placeholder="-- Chọn thẻ --"
+                  showSearch={true}
+                  searchPlaceholder="Gõ tên thẻ để tìm..."
+                />
               </div>
               <div>
                 <label style={{ fontSize: '0.85rem', color: 'var(--jp-text-muted)', marginBottom: '0.35rem', display: 'block' }}>Tình huống (câu hỏi) *</label>
@@ -1413,11 +1415,11 @@ export default function AdminPanel({
                 />
               </div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="submit" className="jp-btn jp-btn-primary" style={{ flex: 1 }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                   <Plus size={16} /> {editingScenarioId ? 'Lưu thay đổi' : 'Thêm câu hỏi'}
                 </button>
                 {editingScenarioId && (
-                  <button type="button" onClick={resetScenForm} className="jp-btn" style={{ background: 'var(--jp-surface-raised)', color: 'var(--jp-text)' }}>
+                  <button type="button" onClick={resetScenForm} className="btn" style={{ background: 'var(--jp-surface)', color: 'var(--jp-text)', border: '1px solid var(--jp-border)' }}>
                     <X size={16} /> Hủy
                   </button>
                 )}
@@ -1431,16 +1433,25 @@ export default function AdminPanel({
               <h3 style={{ color: 'var(--jp-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                 <FileText size={20} /> Danh sách câu hỏi ({combinedScenarios.filter(s => scenFilterCard === 'all' || s.cardId === scenFilterCard).length})
               </h3>
-              <select
+              <CustomDropdown
                 value={scenFilterCard}
-                onChange={e => setScenFilterCard(e.target.value)}
-                style={{ padding: '0.4rem 0.7rem', borderRadius: 'var(--jp-radius)', border: '1px solid var(--jp-border)', background: 'var(--jp-surface)', color: 'var(--jp-text)', fontSize: '0.85rem' }}
-              >
-                <option value="all">Tất cả thẻ</option>
-                {MANNERS_DATA.map(card => (
-                  <option key={card.id} value={card.id}>{card.titleVi}</option>
-                ))}
-              </select>
+                onChange={val => setScenFilterCard(val)}
+                options={[
+                  { value: 'all', label: 'Tất cả thẻ' },
+                  ...dictionary.map(card => ({ value: card.id, label: card.titleVi }))
+                ]}
+                showSearch={true}
+                searchPlaceholder="Tìm thẻ để lọc..."
+                buttonStyle={{
+                  padding: '0.4rem 0.7rem',
+                  fontSize: '0.85rem',
+                  minHeight: '34px',
+                  borderRadius: 'var(--jp-radius)',
+                  backgroundColor: 'var(--jp-surface)',
+                  border: '1px solid var(--jp-border)'
+                }}
+                style={{ width: '100%', maxWidth: '280px' }}
+              />
             </div>
             {combinedScenarios.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--jp-text-muted)' }}>
@@ -1452,7 +1463,7 @@ export default function AdminPanel({
                 {combinedScenarios
                   .filter(s => scenFilterCard === 'all' || s.cardId === scenFilterCard)
                   .map((s, i) => {
-                    const card = MANNERS_DATA.find(c => c.id === s.cardId);
+                    const card = dictionary.find(c => c.id === s.cardId);
                     
                     // Determine badge
                     let badge = null;

@@ -1556,18 +1556,19 @@ select {
 }
 
 .profile-card form,
-.admin-card form,
-.cv-form-panel {
-  accent-color: var(--jp-red);
-}
-
 .profile-card .form-control,
 .admin-card .form-input,
-.admin-card .form-textarea,
-.cv-form-panel .form-input,
-.cv-form-panel .form-textarea {
+.cv-form-panel .form-input {
   min-height: 42px;
   border-radius: 8px !important;
+}
+
+.admin-card .form-textarea,
+.cv-form-panel .form-textarea {
+  min-height: 120px !important;
+  border-radius: 8px !important;
+  line-height: 1.5;
+  padding: 0.8rem 1rem !important;
 }
 
 .profile-card .form-control:hover,
@@ -1576,6 +1577,31 @@ select {
 .cv-form-panel .form-input:hover,
 .cv-form-panel .form-textarea:hover {
   border-color: color-mix(in srgb, var(--jp-blue) 46%, var(--jp-border));
+}
+
+.admin-card .form-input {
+  padding: 0.75rem 1rem !important;
+  font-size: 0.92rem;
+  transition: all 0.2s ease;
+}
+
+.admin-card .form-input:focus,
+.admin-card .form-textarea:focus {
+  border-color: var(--jp-blue) !important;
+  box-shadow: 0 0 0 4px rgba(15, 44, 89, 0.08) !important;
+  background: var(--jp-card-bg) !important;
+}
+
+.admin-card .form-group {
+  margin-bottom: 1.25rem;
+}
+
+.admin-card .form-label {
+  font-weight: 600;
+  color: var(--jp-text);
+  margin-bottom: 0.45rem;
+  display: block;
+  font-size: 0.88rem;
 }
 
 .profile-card button[title],
@@ -2568,6 +2594,17 @@ select {
   }
 }
 
+@keyframes dropdownFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
 /* ==========================================================================
    MOBILE WARPING FIX FOR CIRCULAR ELEMENTS
    ========================================================================== */
@@ -2596,6 +2633,40 @@ span[style*="border-radius: 50%"],
 span[style*="border-radius:50%"] {
   aspect-ratio: 1 / 1 !important;
   flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Global wildcard circle lock for CSS Modules classes */
+[class*="logo-circle"],
+[class*="logoCircle"],
+[class*="scene-dot"],
+[class*="step-node"],
+[class*="action-dropdown-btn"],
+[class*="pwd-toggle-btn"],
+[class*="pwdToggleBtn"],
+[class*="card-bookmark-btn"],
+[class*="btn-sparkles"],
+[class*="closeBtn"],
+[class*="iconBtn"],
+[class*="refreshBtn"],
+[class*="themeToggle"],
+[class*="themeToggleBtn"],
+[class*="removeAvatarBtn"],
+[class*="editAvatarBtn"],
+[class*="uploadTrigger"],
+[class*="playButton"],
+[class*="chatIcon"],
+[class*="avatarWrapper"],
+[class*="avatarPreview"],
+[class*="avatarPlaceholder"],
+[class*="userAvatar"],
+[class*="authorAvatar"],
+[class*="iconWrapper"],
+[class*="sendBtn"],
+[class*="menuBtn"] {
+  aspect-ratio: 1 / 1 !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
 }
 
 /* Safari backface-visibility bug fix for 3D card flips */
@@ -2629,4 +2700,65 @@ span[style*="border-radius:50%"] {
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;
+}
+
+/* --- Admin Panel Responsive Layouts --- */
+.admin-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+.roles-grid {
+  grid-template-columns: 1fr 1.2fr;
+}
+
+.dict-grid {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.scenarios-grid {
+  grid-template-columns: 1fr 1.5fr;
+  align-items: start;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .roles-grid,
+  .dict-grid,
+  .scenarios-grid,
+  .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+
+  .admin-card {
+    padding: 1.25rem !important;
+  }
+
+  /* Make admin tabs scrollable horizontally on mobile */
+  .filter-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    padding-bottom: 0.75rem !important;
+    margin-bottom: 1.5rem !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.5rem !important;
+  }
+
+  .filter-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .filter-tabs .tab-btn {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
 }

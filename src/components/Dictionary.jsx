@@ -6,12 +6,12 @@ import { MANNERS_DATA } from '../data/mannersData';
 
 // ─── LEVEL SYSTEM CONSTANTS ───────────────────────────────────────────────
 const LEVEL_CONFIG = [
-  { rank: 'E', label: 'Tân binh',       minXp: 0,    maxXp: 49,   color: '#78909c', bg: 'rgba(120,144,156,0.12)', gradient: 'linear-gradient(135deg,#78909c,#546e7a)',     topPercent: 100 },
-  { rank: 'D', label: 'Người học',      minXp: 50,   maxXp: 199,  color: '#27ae60', bg: 'rgba(39,174,96,0.12)',  gradient: 'linear-gradient(135deg,#27ae60,#1e8449)',    topPercent: 80  },
-  { rank: 'C', label: 'Học viên',       minXp: 200,  maxXp: 499,  color: '#2980b9', bg: 'rgba(41,128,185,0.12)', gradient: 'linear-gradient(135deg,#2980b9,#21618c)',    topPercent: 55  },
-  { rank: 'B', label: 'Thực thụ',       minXp: 500,  maxXp: 999,  color: '#8e44ad', bg: 'rgba(142,68,173,0.12)', gradient: 'linear-gradient(135deg,#8e44ad,#6c3483)',    topPercent: 30  },
-  { rank: 'A', label: 'Bậc thầy',       minXp: 1000, maxXp: 2499, color: '#e67e22', bg: 'rgba(230,126,34,0.12)', gradient: 'linear-gradient(135deg,#e67e22,#d35400)',    topPercent: 15  },
-  { rank: 'S', label: 'Huyền thoại',    minXp: 2500, maxXp: Infinity, color: '#c0392b', bg: 'rgba(192,57,43,0.12)', gradient: 'linear-gradient(135deg,#f39c12,#c0392b)', topPercent: 2   },
+  { rank: 'E', label: 'Tân binh',       minXp: 0,    maxXp: 99,   color: '#78909c', bg: 'rgba(120,144,156,0.12)', gradient: 'linear-gradient(135deg,#78909c,#546e7a)',     topPercent: 100 },
+  { rank: 'D', label: 'Người học',      minXp: 100,  maxXp: 399,  color: '#27ae60', bg: 'rgba(39,174,96,0.12)',  gradient: 'linear-gradient(135deg,#27ae60,#1e8449)',    topPercent: 80  },
+  { rank: 'C', label: 'Học viên',       minXp: 400,  maxXp: 999,  color: '#2980b9', bg: 'rgba(41,128,185,0.12)', gradient: 'linear-gradient(135deg,#2980b9,#21618c)',    topPercent: 55  },
+  { rank: 'B', label: 'Thực thụ',       minXp: 1000, maxXp: 2499, color: '#8e44ad', bg: 'rgba(142,68,173,0.12)', gradient: 'linear-gradient(135deg,#8e44ad,#6c3483)',    topPercent: 30  },
+  { rank: 'A', label: 'Bậc thầy',       minXp: 2500, maxXp: 4999, color: '#e67e22', bg: 'rgba(230,126,34,0.12)', gradient: 'linear-gradient(135deg,#e67e22,#d35400)',    topPercent: 15  },
+  { rank: 'S', label: 'Huyền thoại',    minXp: 5000, maxXp: Infinity, color: '#c0392b', bg: 'rgba(192,57,43,0.12)', gradient: 'linear-gradient(135deg,#f39c12,#c0392b)', topPercent: 2   },
 ];
 
 function getUserLevel(xp) {
@@ -23,21 +23,21 @@ function getUserLevel(xp) {
       return { ...cfg, xp, nextRank: next ? next.rank : null, nextXp: next ? next.minXp : null, progressInLevel: Math.min(1, progressInLevel) };
     }
   }
-  return { ...LEVEL_CONFIG[0], xp, nextRank: LEVEL_CONFIG[1].rank, nextXp: LEVEL_CONFIG[1].minXp, progressInLevel: xp / 50 };
+  return { ...LEVEL_CONFIG[0], xp, nextRank: LEVEL_CONFIG[1].rank, nextXp: LEVEL_CONFIG[1].minXp, progressInLevel: xp / 100 };
 }
 
 function calculateTotalXp(challenges = [], flippedCount = 0, bookmarksCount = 0, audioCount = 0, streak = 0) {
   // XP from challenges
   const challengeXp = challenges.reduce((acc, c) => {
-    const xpPerQ = c.difficulty === 'easy' ? 10 : c.difficulty === 'medium' ? 20 : c.difficulty === 'hard' ? 40 : c.difficulty === 'extreme' ? 80 : 15;
+    const xpPerQ = c.difficulty === 'easy' ? 5 : c.difficulty === 'medium' ? 10 : c.difficulty === 'hard' ? 20 : c.difficulty === 'extreme' ? 40 : 10;
     return acc + Math.round(c.score * xpPerQ);
   }, 0);
-  // XP from flipping cards (+5 each)
-  const cardXp = flippedCount * 5;
-  // XP from bookmarks (+2 each)
-  const bookmarkXp = bookmarksCount * 2;
-  // XP from audio (+3 each)
-  const audioXp = audioCount * 3;
+  // XP from flipping cards (+2 each)
+  const cardXp = flippedCount * 2;
+  // XP from bookmarks (+1 each)
+  const bookmarkXp = bookmarksCount * 1;
+  // XP from audio (+1 each)
+  const audioXp = audioCount * 1;
   return challengeXp + cardXp + bookmarkXp + audioXp;
 }
 
@@ -313,6 +313,12 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
   });
 
   const [showOnlyBookmarked, setShowOnlyBookmarked] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(12);
+
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [activeCategory, searchQuery, showOnlyBookmarked]);
+
   const [dbUsersList, setDbUsersList] = useState([]);
   const [showLeaderboardInfo, setShowLeaderboardInfo] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
@@ -697,7 +703,11 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
   ], [cardsFlippedCount, challengesCompleted, bookmarkedCards, dictionary, audioListenedCount]);
 
   useEffect(() => {
-    localStorage.setItem('nihon_cards_flipped', JSON.stringify(cardsFlipped));
+    try {
+      localStorage.setItem('nihon_cards_flipped', JSON.stringify(cardsFlipped));
+    } catch (e) {
+      console.warn("Failed to save nihon_cards_flipped to localStorage:", e);
+    }
     const session = JSON.parse(localStorage.getItem('session_user'));
     if (session && session.email && cardsFlipped) {
       syncFlippedToSharedStore(cardsFlipped);
@@ -705,11 +715,19 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
   }, [cardsFlipped]);
 
   useEffect(() => {
-    localStorage.setItem('nihon_challenges_completed', JSON.stringify(challengesCompleted));
+    try {
+      localStorage.setItem('nihon_challenges_completed', JSON.stringify(challengesCompleted));
+    } catch (e) {
+      console.warn("Failed to save nihon_challenges_completed to localStorage:", e);
+    }
   }, [challengesCompleted]);
 
   useEffect(() => {
-    localStorage.setItem('nihon_bookmarked_cards', JSON.stringify(bookmarkedCards));
+    try {
+      localStorage.setItem('nihon_bookmarked_cards', JSON.stringify(bookmarkedCards));
+    } catch (e) {
+      console.warn("Failed to save nihon_bookmarked_cards to localStorage:", e);
+    }
     const session = JSON.parse(localStorage.getItem('session_user'));
     if (session && session.email && bookmarkedCards) {
       syncBookmarkedToSharedStore(bookmarkedCards);
@@ -717,7 +735,11 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
   }, [bookmarkedCards]);
 
   useEffect(() => {
-    localStorage.setItem('nihon_audio_listened_count', audioListenedCount);
+    try {
+      localStorage.setItem('nihon_audio_listened_count', audioListenedCount);
+    } catch (e) {
+      console.warn("Failed to save nihon_audio_listened_count to localStorage:", e);
+    }
     const session = JSON.parse(localStorage.getItem('session_user'));
     if (session && session.email && audioListenedCount !== undefined) {
       syncAudioListenedToSharedStore(audioListenedCount);
@@ -783,7 +805,11 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
 
       setAudioListenedCount(prev => {
         const nextVal = prev + 1;
-        localStorage.setItem('nihon_audio_listened_count', nextVal);
+        try {
+          localStorage.setItem('nihon_audio_listened_count', nextVal);
+        } catch (e) {
+          console.warn("Failed to save nihon_audio_listened_count to localStorage:", e);
+        }
         return nextVal;
       });
     } catch (e) {
@@ -1287,7 +1313,9 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: '1.75rem',
-        alignItems: 'start'
+        alignItems: 'start',
+        position: 'relative',
+        zIndex: showLeaderboardInfo ? 99 : 2
       }}>
         {/* Flipped Progress */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1431,30 +1459,83 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
               {showLeaderboardInfo && (
                 <div style={{
                   position: 'absolute',
-                  top: '22px',
+                  top: '26px',
                   left: 0,
-                  zIndex: 50,
+                  zIndex: 100,
                   background: 'var(--jp-card-bg)',
                   border: '1px solid var(--jp-border)',
-                  borderRadius: '10px',
-                  padding: '0.75rem',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                  width: '220px',
-                  fontSize: '0.72rem',
+                  borderRadius: '16px',
+                  padding: '1.15rem 1.25rem',
+                  boxShadow: 'var(--jp-shadow-lg, 0 12px 32px rgba(15, 44, 89, 0.16))',
+                  width: '320px',
+                  fontSize: '0.78rem',
                   color: 'var(--jp-text)',
-                  lineHeight: 1.5
+                  lineHeight: 1.6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  backdropFilter: 'blur(8px)',
+                  animation: 'fadeIn 0.2s ease-out'
                 }} onClick={(e) => e.stopPropagation()}>
-                  <strong style={{ color: 'var(--jp-blue)', display: 'block', marginBottom: '0.4rem' }}>💡 Cách tính điểm</strong>
-                  <ul style={{ margin: 0, paddingLeft: '1rem' }}>
-                    <li>Lật thẻ lần đầu: <strong>+5 XP/thẻ</strong></li>
-                    <li>Thử thách Dễ: <strong>+10 XP/câu đúng</strong></li>
-                    <li>Thử thách T.Bình: <strong>+20 XP/câu đúng</strong></li>
-                    <li>Thử thách Khó: <strong>+40 XP/câu đúng</strong></li>
-                    <li>Thử thách Cực Khó: <strong>+80 XP/câu đúng</strong></li>
-                    <li>Bookmark thẻ: <strong>+2 XP</strong></li>
-                    <li>Nghe audio: <strong>+3 XP</strong></li>
-                    <li>Tích lũy XP để thăng Hạng E→D→C→B→A→S</li>
-                  </ul>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', borderBottom: '1px solid var(--jp-border)', paddingBottom: '0.5rem', marginBottom: '0.15rem' }}>
+                    <span style={{ fontSize: '1rem' }}>💡</span>
+                    <strong style={{ color: 'var(--jp-blue)', fontSize: '0.85rem', fontWeight: 800 }}>Cách tích lũy điểm kinh nghiệm (XP)</strong>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {[
+                      { label: 'Lật thẻ học mới lần đầu', xp: '+2 XP/thẻ', color: '#3b82f6' },
+                      { label: 'Trả lời đúng thử thách Dễ', xp: '+5 XP/câu', color: '#10b981' },
+                      { label: 'Trả lời đúng thử thách T.Bình', xp: '+10 XP/câu', color: '#f59e0b' },
+                      { label: 'Trả lời đúng thử thách Khó', xp: '+20 XP/câu', color: '#ef4444' },
+                      { label: 'Trả lời đúng thử thách Cực Khó', xp: '+40 XP/câu', color: '#8b5cf6' },
+                      { label: 'Lưu (Bookmark) thẻ học', xp: '+1 XP/thẻ', color: '#ec4899' },
+                      { label: 'Nghe phát âm audio của thẻ', xp: '+1 XP/lượt', color: '#06b6d4' }
+                    ].map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ color: 'var(--jp-text-muted)', fontWeight: 500 }}>{item.label}</span>
+                        <span style={{
+                          background: `${item.color}12`,
+                          color: item.color,
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap'
+                        }}>{item.xp}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--jp-border)', paddingTop: '0.6rem', marginTop: '0.15rem' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--jp-text-muted)', fontWeight: 700, marginBottom: '0.25rem' }}>
+                      🏆 Hạng cấp độ (Thăng Hạng)
+                    </div>
+                    <p style={{ fontSize: '0.68rem', color: 'var(--jp-text-muted)', margin: '0 0 0.45rem 0', lineHeight: 1.4 }}>
+                      Tích lũy XP để hệ thống tự động thăng cấp bậc:
+                    </p>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      background: 'var(--jp-surface)',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      color: 'var(--jp-blue)',
+                      fontSize: '0.75rem'
+                    }}>
+                      {['E', 'D', 'C', 'B', 'A', 'S'].map((rank, idx) => (
+                        <span key={rank} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{
+                            color: rank === 'S' ? 'var(--jp-red)' : 'inherit',
+                            textShadow: rank === 'S' ? '0 0 6px rgba(232, 54, 93, 0.4)' : 'none'
+                          }}>{rank}</span>
+                          {idx < 5 && <span style={{ color: 'var(--jp-text-muted)', fontWeight: 400, fontSize: '0.65rem' }}>→</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1684,7 +1765,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
         gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
         gap: '1.5rem'
       }}>
-        {filteredData.map((item) => {
+        {filteredData.slice(0, visibleCount).map((item) => {
           const isStarred = bookmarkedCards.includes(item.id);
 
           return (
@@ -1693,7 +1774,7 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
               className="flashcard-container"
               onClick={() => handleCardClick(item.id)}
               style={{
-                height: '420px',
+                height: '450px',
                 perspective: '1000px',
                 cursor: 'pointer',
                 transform: 'scale(1) translateZ(0)',
@@ -1763,42 +1844,52 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                     <CategoryIcon category={item.category} id={item.id} />
                   </div>
 
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '0.35rem' }}>
-                      <h4 className="card-title-jp" style={{
-                        fontSize: '1.25rem',
+                  <div style={{ textAlign: 'center', width: '100%' }}>
+                    <h4 className="card-title-jp" style={{
+                      fontSize: '1.2rem',
+                      color: 'var(--jp-red)',
+                      margin: '0 0 0.25rem 0',
+                      fontWeight: 700,
+                      lineHeight: 1.3
+                    }}>{item.titleJp}</h4>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playJapaneseVoice(item.titleJp);
+                      }}
+                      style={{
+                        background: 'rgba(188, 0, 45, 0.05)',
+                        border: '1px solid rgba(188, 0, 45, 0.15)',
+                        borderRadius: '20px',
+                        cursor: 'pointer',
+                        fontSize: '0.72rem',
+                        padding: '3px 10px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
                         color: 'var(--jp-red)',
-                        margin: 0,
-                        fontWeight: 700
-                      }}>{item.titleJp}</h4>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playJapaneseVoice(item.titleJp);
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '1.1rem',
-                          padding: '2px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          color: 'var(--jp-red)',
-                          transition: 'transform 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.15)'}
-                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                        title="Nghe phát âm"
-                      >
-                        🔊
-                      </button>
-                    </div>
+                        fontWeight: 700,
+                        margin: '0.25rem auto 0.4rem',
+                        transition: 'all 0.2s ease',
+                        outline: 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.background = 'rgba(188, 0, 45, 0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.background = 'rgba(188, 0, 45, 0.05)';
+                      }}
+                      title="Nghe phát âm"
+                    >
+                      🔊 Nghe phát âm
+                    </button>
                     <h5 className="card-title-vi" style={{
-                      fontSize: '0.95rem',
+                      fontSize: '0.9rem',
                       color: 'var(--jp-blue)',
                       fontWeight: 600,
-                      margin: 0
+                      margin: '0.25rem 0 0 0'
                     }}>{item.titleVi}</h5>
                   </div>
 
@@ -2173,6 +2264,39 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
           );
         })}
       </div>
+
+      {filteredData.length > visibleCount && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2.5rem' }}>
+          <button
+            onClick={() => setVisibleCount(prev => prev + 12)}
+            style={{
+              padding: '0.85rem 2rem',
+              background: 'linear-gradient(135deg, var(--jp-blue) 0%, #2980b9 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              boxShadow: '0 6px 20px rgba(41, 128, 185, 0.25)',
+              transition: 'all 0.25s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 8px 24px rgba(41, 128, 185, 0.35)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 6px 20px rgba(41, 128, 185, 0.25)';
+            }}
+          >
+            <span>📖 Xem thêm thẻ học ({filteredData.length - visibleCount} thẻ ẩn)</span>
+          </button>
+        </div>
+      )}
 
       {/* Interactive Quiz Modal/Overlay */}
       {practiceItem && createPortal(
@@ -3221,10 +3345,14 @@ export default function Dictionary({ dictionary = MANNERS_DATA }) {
                   setBookmarkedCards([]);
                   setAudioListenedCount(0);
 
-                  localStorage.setItem('nihon_cards_flipped', JSON.stringify([]));
-                  localStorage.setItem('nihon_challenges_completed', JSON.stringify([]));
-                  localStorage.setItem('nihon_bookmarked_cards', JSON.stringify([]));
-                  localStorage.setItem('nihon_audio_listened_count', '0');
+                  try {
+                    localStorage.setItem('nihon_cards_flipped', JSON.stringify([]));
+                    localStorage.setItem('nihon_challenges_completed', JSON.stringify([]));
+                    localStorage.setItem('nihon_bookmarked_cards', JSON.stringify([]));
+                    localStorage.setItem('nihon_audio_listened_count', '0');
+                  } catch (e) {
+                    console.warn("Failed to clear localStorage progress:", e);
+                  }
 
                   const resetStreak = { streak: 0, lastStudyDate: null, maxStreak: 0 };
                   try {

@@ -242,6 +242,15 @@
   .coverPhoto {
     margin-bottom: 0;
   }
+  .roleBox {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .roleDesc {
+    font-size: 0.85rem;
+  }
 }
 
 .cardTitle {

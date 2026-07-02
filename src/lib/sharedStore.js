@@ -31,7 +31,11 @@ function readLocal(key, fallback) {
 }
 
 function writeLocal(key, value) {
-  localStorage.setItem(localKey(key), JSON.stringify(value));
+  try {
+    localStorage.setItem(localKey(key), JSON.stringify(value));
+  } catch (e) {
+    console.warn("localStorage write failed:", e);
+  }
 }
 
 async function readSupabase(key) {

@@ -448,11 +448,18 @@
   border: none;
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  max-width: 32px;
+  max-height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
   transition: all 0.2s;
 }
 
@@ -713,14 +720,22 @@
 .menuBtn {
   background: none;
   border: none;
-
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
 }
 
 .menuBtn:hover {
@@ -1092,18 +1107,26 @@
 }
 
 .refreshBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  border-radius: 50% !important;
   background: var(--jp-surface-raised);
   border: 1px solid var(--jp-border);
   color: var(--jp-text-muted);
   cursor: pointer;
   transition: all 0.2s ease;
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .refreshBtn:hover {
@@ -1216,6 +1239,7 @@
 
 .quickQuestionInput {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   font-size: 0.93rem;
@@ -1601,5 +1625,103 @@
   to {
     opacity: 0;
     transform: scale(0.95) translateY(8px);
+  }
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .header {
+    margin-bottom: 1.5rem;
+  }
+
+  .title {
+    font-size: 1.8rem;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+  }
+
+  .quickQuestionContainer {
+    padding: 0.75rem;
+  }
+
+  .quickQuestionWrapper {
+    gap: 0.5rem;
+    padding: 0.35rem 0.4rem 0.35rem 0.65rem;
+  }
+
+  .quickQuestionBtn {
+    padding: 0.45rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  /* Keep all tags/chips in a premium horizontal scrollbar instead of wrapping vertically */
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    margin-bottom: 1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .searchSortBar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .searchBox {
+    grid-column: 1 / -1;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .sortBox {
+    grid-column: 1;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .customDropdown {
+    flex: 1;
+  }
+
+  .refreshBtn {
+    grid-column: 2;
+    align-self: center;
+    justify-self: end;
+  }
+
+  .postCard {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  /* Prevent post metadata row from squeezing on mobile screen widths */
+  .postMeta {
+    flex-wrap: wrap;
+    row-gap: 0.3rem;
+    column-gap: 0.5rem;
+    line-height: 1.4;
+  }
+  
+  .postMeta span {
+    display: inline-block;
+  }
+
+  /* Hide raw bullet separator spans on mobile and rely on gaps */
+  .metaDivider {
+    display: none;
+  }
+
+  .postActions {
+    justify-content: space-between;
+    gap: 0.5rem;
   }
 }

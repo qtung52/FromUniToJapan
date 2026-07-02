@@ -148,10 +148,13 @@ export default function ImageUploadCropModal({
 
     const handleTouchMove = (e) => {
       if (e.touches.length !== 1) return;
-      if (dragHandle) {
-        freeMouseMove(e.touches[0]);
-      } else if (isPanning) {
-        fixedTouchMove(e);
+      if (dragHandle || isPanning) {
+        if (e.cancelable) e.preventDefault();
+        if (dragHandle) {
+          freeMouseMove(e.touches[0]);
+        } else if (isPanning) {
+          fixedTouchMove(e);
+        }
       }
     };
 

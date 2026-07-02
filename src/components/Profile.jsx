@@ -571,7 +571,11 @@ export default function Profile({ currentUser, onUpdateProfile }) {
                   <a
                     href="#/senpai"
                     onClick={() => {
-                      localStorage.setItem('active_thread_focus', thread.id);
+                      try {
+                        localStorage.setItem('active_thread_focus', thread.id);
+                      } catch (e) {
+                        console.warn("Failed to save active_thread_focus to localStorage:", e);
+                      }
                     }}
                     className={styles.savedThreadTitle}
                   >

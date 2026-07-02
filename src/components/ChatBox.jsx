@@ -677,7 +677,6 @@ export default function ChatBox({ currentUser }) {
 
         /* ===== USER BUBBLE ===== */
         .msg-bubble-user {
-          max-width: 85%;
           padding: 0.75rem 1.1rem;
           background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
           color: white;
@@ -691,7 +690,6 @@ export default function ChatBox({ currentUser }) {
 
         /* ===== BOT BUBBLE (glass) ===== */
         .msg-bubble-bot {
-          max-width: 92%;
           padding: 1rem 1.15rem;
           background: rgba(255, 255, 255, 0.04);
           backdrop-filter: blur(20px);

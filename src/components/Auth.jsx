@@ -185,7 +185,11 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
             bio: 'Quản trị viên hệ thống From Uni to Japan. Rất vui được hỗ trợ và định hướng văn hóa cho các bạn Kouhai.',
             careerGoal: 'Lãnh đạo Giáo dục / Nhân sự Nhật Bản'
           };
-          localStorage.setItem('session_user', JSON.stringify(adminUser));
+          try {
+            localStorage.setItem('session_user', JSON.stringify(adminUser));
+          } catch (e) {
+            console.warn("Failed to save session_user to localStorage:", e);
+          }
           onLogin(adminUser);
           return;
         }
@@ -208,7 +212,11 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
             bio: user.bio || '',
             careerGoal: user.careerGoal || 'Software Engineer (Japan)'
           };
-          localStorage.setItem('session_user', JSON.stringify(loggedUser));
+          try {
+            localStorage.setItem('session_user', JSON.stringify(loggedUser));
+          } catch (e) {
+            console.warn("Failed to save session_user to localStorage:", e);
+          }
           onLogin(loggedUser);
         } else {
           setErrorMsg('Sai email hoặc mật khẩu! Vui lòng kiểm tra lại.');
@@ -399,16 +407,18 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
                 // Step 1: Input email to search
                 <form onSubmit={handleFindAccount}>
                   <div className={styles.formGroup}>
-                    <Mail size={18} className={styles.inputIcon} />
-                    <input
-                      type="email"
-                      className={`${styles.floatingInput} ${email ? styles.hasValue : ''}`}
-                      placeholder=" "
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
                     <label className={styles.floatingLabel}>Email đăng nhập</label>
+                    <div className={styles.inputRow}>
+                      <Mail size={18} className={styles.inputIcon} />
+                      <input
+                        type="email"
+                        className={styles.floatingInput}
+                        placeholder="Nhập email của bạn..."
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                   <button type="submit" className={styles.btnPrimary} disabled={isLoading}>
                     {isLoading ? (
@@ -431,16 +441,18 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
                     <strong style={{ color: 'var(--jp-text)', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>🔒 {userQuestion}</strong>
                   </div>
                   <div className={styles.formGroup}>
-                    <HelpCircle size={18} className={styles.inputIcon} />
-                    <input
-                      type="text"
-                      className={`${styles.floatingInput} ${userAnswerInput ? styles.hasValue : ''}`}
-                      placeholder=" "
-                      value={userAnswerInput}
-                      onChange={(e) => setUserAnswerInput(e.target.value)}
-                      required
-                    />
                     <label className={styles.floatingLabel}>Câu trả lời của bạn</label>
+                    <div className={styles.inputRow}>
+                      <HelpCircle size={18} className={styles.inputIcon} />
+                      <input
+                        type="text"
+                        className={styles.floatingInput}
+                        placeholder="Nhập câu trả lời..."
+                        value={userAnswerInput}
+                        onChange={(e) => setUserAnswerInput(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                   <button type="submit" className={styles.btnPrimary} disabled={isLoading}>
                     {isLoading ? (
@@ -459,23 +471,25 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
                 // Step 3: Set new password
                 <form onSubmit={handleResetPassword}>
                   <div className={styles.formGroup}>
-                    <Lock size={18} className={styles.inputIcon} />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      className={`${styles.floatingInput} ${newPassword ? styles.hasValue : ''}`}
-                      placeholder=" "
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                    />
                     <label className={styles.floatingLabel}>Mật khẩu mới</label>
-                    <button
-                      type="button"
-                      className={styles.pwdToggleBtn}
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
+                    <div className={styles.inputRow}>
+                      <Lock size={18} className={styles.inputIcon} />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        className={styles.floatingInput}
+                        placeholder="Nhập mật khẩu mới..."
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className={styles.pwdToggleBtn}
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
                   <button type="submit" className={styles.btnPrimary} disabled={isLoading}>
                     {isLoading ? (
@@ -496,16 +510,18 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
                 {authMode === 'register' && (
                   <>
                     <div className={styles.formGroup}>
-                      <User size={18} className={styles.inputIcon} />
-                      <input
-                        type="text"
-                        className={`${styles.floatingInput} ${name ? styles.hasValue : ''}`}
-                        placeholder=" "
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                      />
                       <label className={styles.floatingLabel}>Họ và Tên</label>
+                      <div className={styles.inputRow}>
+                        <User size={18} className={styles.inputIcon} />
+                        <input
+                          type="text"
+                          className={styles.floatingInput}
+                          placeholder="Nhập họ và tên của bạn..."
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          required
+                        />
+                      </div>
                     </div>
 
                     <div className={styles.formGroup}>
@@ -518,51 +534,57 @@ export default function Auth({ onLogin, theme, onToggleTheme }) {
                     </div>
 
                     <div className={styles.formGroup}>
-                      <HelpCircle size={18} className={styles.inputIcon} />
-                      <input
-                        type="text"
-                        className={`${styles.floatingInput} ${securityAnswer ? styles.hasValue : ''}`}
-                        placeholder=" "
-                        value={securityAnswer}
-                        onChange={(e) => setSecurityAnswer(e.target.value)}
-                        required
-                      />
                       <label className={styles.floatingLabel}>Câu trả lời bảo mật</label>
+                      <div className={styles.inputRow}>
+                        <HelpCircle size={18} className={styles.inputIcon} />
+                        <input
+                          type="text"
+                          className={styles.floatingInput}
+                          placeholder="Nhập câu trả lời bảo mật..."
+                          value={securityAnswer}
+                          onChange={(e) => setSecurityAnswer(e.target.value)}
+                          required
+                        />
+                      </div>
                     </div>
                   </>
                 )}
 
                 <div className={styles.formGroup}>
-                  <Mail size={18} className={styles.inputIcon} />
-                  <input
-                    type="email"
-                    className={`${styles.floatingInput} ${email ? styles.hasValue : ''}`}
-                    placeholder=" "
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
                   <label className={styles.floatingLabel}>Email đăng nhập</label>
+                  <div className={styles.inputRow}>
+                    <Mail size={18} className={styles.inputIcon} />
+                    <input
+                      type="email"
+                      className={styles.floatingInput}
+                      placeholder="Nhập email của bạn..."
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <Lock size={18} className={styles.inputIcon} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    className={`${styles.floatingInput} ${password ? styles.hasValue : ''}`}
-                    placeholder=" "
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
                   <label className={styles.floatingLabel}>Mật khẩu</label>
-                  <button
-                    type="button"
-                    className={styles.pwdToggleBtn}
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+                  <div className={styles.inputRow}>
+                    <Lock size={18} className={styles.inputIcon} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className={styles.floatingInput}
+                      placeholder="Nhập mật khẩu của bạn..."
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className={styles.pwdToggleBtn}
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Password Strength Meter for Register Mode */}
