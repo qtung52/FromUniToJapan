@@ -4,12 +4,12 @@ import styles from './Hero.module.css';
 
 // ─── XP / Level logic (mirror of Dictionary.jsx) ──────────────────────────
 const LEVEL_CONFIG = [
-  { rank: 'E', label: 'Tân binh', minXp: 0, maxXp: 49, color: '#78909c', gradient: 'linear-gradient(135deg,#78909c,#546e7a)' },
-  { rank: 'D', label: 'Người học', minXp: 50, maxXp: 199, color: '#27ae60', gradient: 'linear-gradient(135deg,#27ae60,#1e8449)' },
-  { rank: 'C', label: 'Học viên', minXp: 200, maxXp: 499, color: '#2980b9', gradient: 'linear-gradient(135deg,#2980b9,#21618c)' },
-  { rank: 'B', label: 'Thực thụ', minXp: 500, maxXp: 999, color: '#8e44ad', gradient: 'linear-gradient(135deg,#8e44ad,#6c3483)' },
-  { rank: 'A', label: 'Bậc thầy', minXp: 1000, maxXp: 2499, color: '#e67e22', gradient: 'linear-gradient(135deg,#e67e22,#d35400)' },
-  { rank: 'S', label: 'Huyền thoại', minXp: 2500, maxXp: Infinity, color: '#c0392b', gradient: 'linear-gradient(135deg,#f39c12,#c0392b)' },
+  { rank: 'E', label: 'Tân binh',       minXp: 0,    maxXp: 99,   color: '#78909c', bg: 'rgba(120,144,156,0.12)', gradient: 'linear-gradient(135deg,#78909c,#546e7a)',     topPercent: 100 },
+  { rank: 'D', label: 'Người học',      minXp: 100,  maxXp: 399,  color: '#27ae60', bg: 'rgba(39,174,96,0.12)',  gradient: 'linear-gradient(135deg,#27ae60,#1e8449)',    topPercent: 80  },
+  { rank: 'C', label: 'Học viên',       minXp: 400,  maxXp: 999,  color: '#2980b9', bg: 'rgba(41,128,185,0.12)', gradient: 'linear-gradient(135deg,#2980b9,#21618c)',    topPercent: 55  },
+  { rank: 'B', label: 'Thực thụ',       minXp: 1000, maxXp: 2499, color: '#8e44ad', bg: 'rgba(142,68,173,0.12)', gradient: 'linear-gradient(135deg,#8e44ad,#6c3483)',    topPercent: 30  },
+  { rank: 'A', label: 'Bậc thầy',       minXp: 2500, maxXp: 4999, color: '#e67e22', bg: 'rgba(230,126,34,0.12)', gradient: 'linear-gradient(135deg,#e67e22,#d35400)',    topPercent: 15  },
+  { rank: 'S', label: 'Huyền thoại',    minXp: 5000, maxXp: Infinity, color: '#c0392b', bg: 'rgba(192,57,43,0.12)', gradient: 'linear-gradient(135deg,#f39c12,#c0392b)', topPercent: 2   },
 ];
 
 function getUserLevel(xp) {
@@ -18,10 +18,10 @@ function getUserLevel(xp) {
       const cfg = LEVEL_CONFIG[i];
       const next = LEVEL_CONFIG[i + 1];
       const progressInLevel = next ? ((xp - cfg.minXp) / (next.minXp - cfg.minXp)) : 1;
-      return { ...cfg, xp, nextRank: next?.rank ?? null, nextXp: next?.minXp ?? null, progressInLevel: Math.min(1, progressInLevel) };
+      return { ...cfg, xp, nextRank: next ? next.rank : null, nextXp: next ? next.minXp : null, progressInLevel: Math.min(1, progressInLevel) };
     }
   }
-  return { ...LEVEL_CONFIG[0], xp, nextRank: 'D', nextXp: 50, progressInLevel: xp / 50 };
+  return { ...LEVEL_CONFIG[0], xp, nextRank: LEVEL_CONFIG[1].rank, nextXp: LEVEL_CONFIG[1].minXp, progressInLevel: xp / 100 };
 }
 
 function loadUserStats() {
@@ -32,13 +32,17 @@ function loadUserStats() {
     const audioCount = parseInt(localStorage.getItem('nihon_audio_listened_count')) || 0;
     const streakData = JSON.parse(localStorage.getItem('nihon_streak_data')) || { streak: 0 };
 
+    // XP from challenges
     const challengeXp = challenges.reduce((acc, c) => {
-      const xpPerQ = c.difficulty === 'easy' ? 10 : c.difficulty === 'medium' ? 20 : c.difficulty === 'hard' ? 40 : c.difficulty === 'extreme' ? 80 : 15;
+      const xpPerQ = c.difficulty === 'easy' ? 5 : c.difficulty === 'medium' ? 10 : c.difficulty === 'hard' ? 20 : c.difficulty === 'extreme' ? 40 : 10;
       return acc + Math.round((c.score || 0) * xpPerQ);
     }, 0);
-    const cardXp = flipped.length * 5;
-    const bookmarkXp = bookmarks.length * 2;
-    const audioXp = audioCount * 3;
+    // XP from flipping cards (+2 each)
+    const cardXp = flipped.length * 2;
+    // XP from bookmarks (+1 each)
+    const bookmarkXp = bookmarks.length * 1;
+    // XP from audio (+1 each)
+    const audioXp = audioCount * 1;
     const totalXp = challengeXp + cardXp + bookmarkXp + audioXp;
 
     const learnedCards = flipped.length;
